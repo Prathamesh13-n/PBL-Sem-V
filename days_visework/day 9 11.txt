@@ -1,0 +1,172 @@
+DAY 9-11 SUMMARY
+AWS EC2 Self-Service Provisioning Portal
+==========================================
+
+
+===========================================================
+DAY 9 - REQUEST STATUS LIFECYCLE
+===========================================================
+
+WHAT WE BUILT
+--------------
+Files updated:
+1. app/schemas.py
+   - Added reviewed_by field to ResourceRequestOut
+   - Added RejectRequest schema (optional reason field)
+
+2. app/routes_requests.py
+   - Added ALLOWED_TRANSITIONS map defining exactly which status changes
+     are legal:
+       pending      -> approved, rejected
+       approved     -> provisioning
+       provisioning -> provisioned, failed
+       rejected, provisioned, failed -> (terminal states, no further moves)
+   - Added transition_status() helper that enforces this map, raising a
+     400 error on any invalid transition attempt
+   - Added three admin-only endpoints:
+       PATCH /requests/{id}/approve
+       PATCH /requests/{id}/reject
+       PATCH /requests/{id}/start-provisioning
+
+WHY IT MATTERS
+---------------
+This is the core business logic of the whole portal - it guarantees a
+request can never skip steps (e.g. jump straight from "pending" to
+"provisioned") or go backwards illegally (e.g. get approved again after
+being rejected). Every transition is validated server-side, not just
+assumed to be correct.
+
+VERIFICATION PERFORMED
+------------------------
+[x] PATCH .../approve on a pending request -> 200, status "approved"
+[x] PATCH .../approve on that SAME request again -> 400 Bad Request
+    (blocked - already approved, correctly rejected)
+[x] PATCH .../start-provisioning -> 200, status "provisioning"
+[x] PATCH .../reject on a different request -> 200, status "rejected"
+[x] PATCH .../approve on that rejected request -> 400 Bad Request
+    (rejected is terminal - correctly blocked)
+
+Result: All transition rules enforced correctly, no invalid state change
+was ever allowed through.
+
+
+===========================================================
+DAY 10 - FULL BACKEND TEST PASS
+===========================================================
+
+WHAT WE DID
+------------
+Ran a complete, systematic test pass across every backend endpoint built
+in Days 4-9, covering both success and failure cases - not just the
+"happy path."
+
+TEST RESULTS (from live server log)
+--------------------------------------
+POST /auth/register (missing field)      -> 422  PASS
+POST /auth/register (duplicate email)     -> 400  PASS
+POST /auth/login (wrong password)          -> 401  PASS
+POST /auth/login (correct credentials)      -> 200  PASS
+GET  /auth/me (valid token)                  -> 200  PASS
+POST /requests (missing field)                -> 422  PASS
+POST /requests (valid data)                    -> 201  PASS
+GET  /requests/9999 (nonexistent id)            -> 404  PASS
+PATCH /requests/2/approve                        -> 200  PASS
+PATCH /requests/2/start-provisioning              -> 200  PASS
+POST /requests (second request)                    -> 201  PASS
+PATCH /requests/3/reject                             -> 200  PASS
+PATCH /requests/3/approve (on rejected request)       -> 400  PASS
+
+Zero 500 Internal Server Errors across the entire test pass.
+
+SUCCESS CRITERIA
+------------------
+[x] Every endpoint tested with both valid and invalid input
+[x] All expected status codes returned correctly
+[x] No unhandled server errors anywhere
+
+RESULT: Backend phase (Days 4-10) officially COMPLETE.
+The API is fully functional: auth, roles, request CRUD, and status
+lifecycle all verified working together.
+
+
+===========================================================
+DAY 11 - REACT FRONTEND SETUP
+===========================================================
+
+WHAT WE BUILT
+--------------
+- Scaffolded a new React project using Vite (faster and more modern than
+  create-react-app)
+- Installed react-router-dom (for multi-page navigation, used from Day 12
+  onward) and axios (for calling the FastAPI backend)
+- Replaced the default Vite starter page with a minimal custom page that:
+    - Displays the project title
+    - Calls the backend's /health endpoint on load
+    - Shows live connection status ("Connected" or an error message)
+
+PROJECT STRUCTURE CREATED
+----------------------------
+frontend/
+├── src/
+│   ├── App.jsx        (custom starting page + backend health check)
+│   ├── App.css         (basic styling)
+│   ├── main.jsx          (Vite/React entry point - unchanged)
+│   └── index.css          (Vite defaults)
+├── public/
+├── package.json
+├── vite.config.js
+└── README.md
+
+HOW TO RUN (two terminals needed, both at once)
+---------------------------------------------------
+Terminal 1 (backend):
+  cd backend
+  venv\Scripts\activate
+  uvicorn app.main:app --reload
+  -> runs on http://127.0.0.1:8000
+
+Terminal 2 (frontend):
+  cd frontend
+  npm install      (only needed the first time)
+  npm run dev
+  -> runs on http://localhost:5173
+
+PROBLEMS ENCOUNTERED AND FIXED
+---------------------------------
+1. Nested folder issue (frontend\frontend) from zip extraction, same
+   pattern as earlier days - fixed by working from the correct outer
+   folder.
+
+2. CORS (Cross-Origin) blocking - the backend's terminal log showed
+   successful "200 OK" responses to /health, but the browser still
+   displayed "Could not reach backend." This is because browsers block
+   JavaScript from reading cross-origin responses (frontend on port 5173,
+   backend on port 8000) unless the server explicitly allows it.
+   Fix: Added CORSMiddleware to app/main.py, explicitly allowing
+   http://localhost:5173 as a permitted origin. This is a standard,
+   expected step in any frontend/backend project running on separate
+   ports - not a mistake, just a necessary configuration piece.
+
+VERIFICATION PERFORMED
+------------------------
+[x] npm run build completes with no errors
+[x] npm run dev starts the Vite dev server successfully
+[x] Frontend page loads in browser at http://localhost:5173
+[x] Frontend successfully calls backend /health endpoint
+[x] Status box correctly displays "Connected - ok, database: connected"
+    after CORS was configured
+
+SUCCESS CRITERIA FOR DAY 11
+------------------------------
+[x] React project set up and running
+[x] Successfully connected to the FastAPI backend across ports
+[x] CORS properly configured (a real requirement, will remain in place
+    for the rest of frontend development)
+
+
+===========================================================
+NEXT (DAY 12)
+===========================================================
+Build the actual Login and Registration pages in React, wired up to the
+/auth/login and /auth/register endpoints - the first real user-facing
+functionality of the portal.

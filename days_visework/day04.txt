@@ -1,0 +1,80 @@
+# Day 4 – Backend Setup (Python, FastAPI, Database, Git)
+## AWS EC2 Self-Service Provisioning Portal
+
+---
+
+## 1. What We Set Up
+
+### Project Structure Created
+```
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py        # FastAPI app + routes
+│   ├── config.py       # Settings loaded from .env
+│   └── database.py     # SQLAlchemy engine/session
+├── venv/                # Python virtual environment (local, not committed)
+├── portal.db             # SQLite database file (auto-created)
+├── requirements.txt
+├── .env                   # Real config values (private)
+├── .env.example            # Template (safe to commit)
+├── .gitignore
+└── README.md
+```
+
+### Files Built
+
+| File | Purpose |
+|---|---|
+| `app/main.py` | FastAPI app with two endpoints: `/` (basic check) and `/health` (checks API + database connection) |
+| `app/config.py` | Loads settings (database URL, secret key, etc.) from `.env` using pydantic-settings |
+| `app/database.py` | Sets up SQLAlchemy engine and session; includes SQLite compatibility handling |
+| `requirements.txt` | Lists all Python dependencies (FastAPI, SQLAlchemy, JWT libs, etc.), using flexible `>=` version ranges for compatibility |
+| `.env` | Real config values (database URL, secret key) — private, never committed to Git |
+| `.env.example` | Template showing what `.env` should contain, safe to commit |
+| `.gitignore` | Keeps `.env`, `venv/`, and future Terraform secrets out of Git |
+| `README.md` | Setup instructions for future reference |
+
+---
+
+## 2. Environment Actually Running
+
+| Item | Value |
+|---|---|
+| Project location | `D:\cloud resourse provider protal\backend` |
+| Virtual environment | `venv` (inside that same folder) |
+| Database | SQLite (`portal.db` file) — swapped in for PostgreSQL, which wasn't installed |
+| Server command | `uvicorn app.main:app --reload` |
+| Server address | `http://127.0.0.1:8000` |
+
+---
+
+## 3. Verification Performed
+
+- [x] `http://127.0.0.1:8000/` → returns `{"message": "Provisioning Portal API is running"}`
+- [x] `http://127.0.0.1:8000/health` → returns `{"status": "ok", "database": "connected"}`
+- [x] `http://127.0.0.1:8000/docs` → interactive Swagger UI showing both endpoints, confirming FastAPI's auto-documentation works
+
+---
+
+## 4. Problems Encountered & Fixed
+
+| # | Problem | Fix |
+|---|---|---|
+| 1 | **Python 3.14 compatibility** — pinned package versions (`==`) had no pre-built installers for this Python version, causing `psycopg2-binary` to fail building from source | Relaxed `requirements.txt` to use `>=` version ranges instead of exact pins |
+| 2 | **Nested/duplicate folders** — zip extraction created a `backend\backend` structure, and multiple `venv`/`.venv` folders got created during troubleshooting | Standardized on one clean folder (`backend/`) and one `venv` inside it |
+| 3 | **`.env` config mismatch** — an undefined `AWS_PROFILE` field in `.env` wasn't declared in `config.py`, causing a pydantic validation error | Removed the unused field from `.env` |
+| 4 | **Duplicated key typo** — `.env` briefly contained `DATABASE_URL=DATABASE_URL=...` | Corrected the line to a single, valid key-value pair |
+| 5 | **PostgreSQL not installed** — `/health` failed with "connection refused" on port 5432 since no PostgreSQL server was running | Switched `DATABASE_URL` to SQLite (`sqlite:///./portal.db`) to unblock development immediately; PostgreSQL can be installed and swapped back in later if required |
+
+> These are documented here because they're genuinely useful material for the "Implementation Challenges" section of the Day 35 project report — real environment/dependency issues are common in cloud/DevOps-adjacent projects and demonstrate practical problem-solving.
+
+---
+
+## 5. Success Criteria for Day 4
+- [x] Python, FastAPI, and a database (SQLite for now, PostgreSQL optional later) all working together
+- [x] Git-ready project structure with `.gitignore` protecting secrets
+- [x] Working health-check endpoint confirming API + DB connectivity
+- [x] Swagger UI (`/docs`) available for future manual API testing (this is what Day 10 will use)
+
+**Next (Day 5):** Create the actual database tables — `Users`, `Resource Requests`, `Deployments` — as SQLAlchemy models, matching the schema designed on Day 3.

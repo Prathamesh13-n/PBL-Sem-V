@@ -1,0 +1,11 @@
+cd backend
+venv\Scripts\activate
+uvicorn app.main:app --reload
+
+
+uvicorn — the program that runs your Python web app.
+app.main — tells Uvicorn to look for:
+a folder named app
+a file named main.py
+:app — tells it to use the FastAPI object called app inside main.py.
+--reload — automatically restarts the server whenever you modify your code.

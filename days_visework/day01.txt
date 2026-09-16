@@ -1,0 +1,126 @@
+# Day 1 – Finalized Requirements & Project Scope
+## AWS EC2 Self-Service Provisioning Portal
+
+---
+
+## 1. Project Title
+**Smart Cloud Resource Provisioning Portal** — A self-service portal for requesting, approving, and automatically deploying AWS EC2 instances via Terraform, with rule-based instance recommendation, cost estimation, and basic security validation.
+
+---
+
+## 2. Finalized Project Scope
+
+### In Scope (Mandatory, V1)
+- User registration/login with role-based access (User, Admin)
+- User-facing resource request form (EC2 only)
+- Rule-based EC2 instance type recommendation engine
+- Predefined-pricing-based cost estimation
+- Basic security validation (public access, SSH exposure, open ports, IAM basics) with a security score
+- Admin approval/rejection workflow
+- Automated provisioning via Terraform on approval
+- Real-time status tracking (Pending → Approved → Provisioning → Provisioned / Failed / Rejected)
+- User dashboard (request summary + history)
+- Admin dashboard (all requests, approve/reject)
+- Dockerized deployment of the full stack
+- Functional, security, and error testing
+- Final documentation + research paper with measurable results
+
+### Out of Scope (Explicitly excluded from V1)
+- S3, RDS, Kubernetes, Lambda, or any non-EC2 AWS service
+- Multi-cloud support (Azure, GCP)
+- AI/ML-based recommendation (reserved for future scope)
+- Auto-scaling, load balancing, multi-region HA
+- Billing/payment integration (cost estimation only, no real billing)
+
+> Rationale: Narrowing to **EC2 + Terraform** keeps the project achievable within 35 days while preserving enough technical depth (cloud automation, IaC, role-based workflows, and a rule-based "innovation" module) for a strong academic submission.
+
+---
+
+## 3. Finalized User Roles
+
+| Role  | Permissions |
+|-------|-------------|
+| **User** | Register/login, submit EC2 resource requests, view own request history & status, view dashboard (request counts by status) |
+| **Admin** | Login, view all requests across all users, approve/reject requests, view deployment status/logs, (implicitly) trigger the Terraform provisioning pipeline on approval |
+
+Role is stored as a field on the `Users` table (`role: user | admin`) and enforced via backend authorization checks (not just frontend hiding of UI elements).
+
+---
+
+## 4. Finalized AWS Resource
+
+**Primary and only AWS resource for V1: Amazon EC2**
+
+Supporting request parameters to be captured per request:
+- Resource type (fixed: EC2)
+- Instance type (e.g., t3.micro / t3.small / t3.medium — recommended by the rule engine, editable by user)
+- Operating System (e.g., Amazon Linux 2, Ubuntu 22.04)
+- Region (e.g., ap-south-1)
+- Storage size (GB)
+- Purpose / justification (free text)
+
+---
+
+## 5. Project Workflow (High-Level)
+
+```
+User Registers/Logs In
+        │
+        ▼
+Submits EC2 Resource Request
+        │
+        ▼
+System runs:
+  - Smart Instance Recommendation (rule-based)
+  - Cost Estimation (predefined pricing)
+  - Security Validation (score)
+        │
+        ▼
+Request stored as "Pending"
+        │
+        ▼
+Admin Reviews Request
+        │
+   ┌────┴────┐
+   ▼         ▼
+Approve    Reject
+   │         │
+   ▼         └──▶ Status: "Rejected" (End)
+Status: "Approved"
+   │
+   ▼
+Backend triggers Terraform
+   │
+   ▼
+Status: "Provisioning"
+   │
+   ┌────┴────┐
+   ▼         ▼
+Success    Failure
+   │         │
+   ▼         └──▶ Status: "Failed"
+Status: "Provisioned"
+(EC2 instance ID + IP captured)
+   │
+   ▼
+User Dashboard reflects final status
+```
+
+---
+
+## 6. Request Status Lifecycle (Finalized)
+
+`Pending → Approved / Rejected`
+`Approved → Provisioning → Provisioned / Failed`
+
+These six states (`Pending`, `Approved`, `Rejected`, `Provisioning`, `Provisioned`, `Failed`) are the only states the system needs to support — no partial or intermediate states required for V1.
+
+---
+
+## 7. Success Criteria for Day 1
+- [x] Scope locked (EC2-only, no scope creep into S3/RDS/K8s/AI)
+- [x] Roles locked (User, Admin — no third role needed)
+- [x] Primary AWS resource locked (EC2)
+- [x] End-to-end workflow diagrammed and agreed
+
+**Next (Day 2):** System architecture, user workflow diagram, admin workflow diagram, AWS + Terraform integration workflow.

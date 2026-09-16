@@ -1,0 +1,205 @@
+# Day 2 – System Architecture & Workflow Design
+## AWS EC2 Self-Service Provisioning Portal
+
+---
+
+## 1. System Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                           CLIENT LAYER                           │
+│                                                                  │
+│   ┌───────────────────────┐        ┌───────────────────────┐     │
+│   │   User Web Browser    │        │   Admin Web Browser    │    │
+│   └───────────┬───────────┘        └───────────┬───────────┘     │
+└───────────────│────────────────────────────────│─────────────────┘
+                 │                                │
+                 ▼                                ▼
+        ┌──────────────────────────────────────────────┐
+        │              React Frontend (SPA)            |
+        │  - Login / Register                          │
+        │  - User Dashboard                            |
+        │  - New Request Form                          │
+        │  - Request History                           │
+        │  - Admin Dashboard (Approve/Reject)          │
+        └───────────────────┬───────────────────────────┘
+                             │ REST API (JSON, JWT auth)
+                             ▼
+        ┌───────────────────────────────────────────┐
+        │             FastAPI Backend (Python)            │
+        │                                                  │
+        │  ┌──────────────┐  ┌──────────────────────┐    │
+        │  │ Auth Module  │  │ Request Mgmt Module   │    │
+        │  │ (JWT, roles) │  │ (CRUD + status logic) │    │
+        │  └──────────────┘  └──────────────────────┘    │
+        │                                                  │
+        │  ┌──────────────┐  ┌──────────────────────┐    │
+        │  │ Innovation   │  │ Terraform Orchestrator │    │
+        │  │ Module:      │  │ (subprocess / CLI      │    │
+        │  │ Recommend +  │  │  wrapper, reads output │    │
+        │  │ Cost + Sec   │  │  state)                 │    │
+        │  └──────────────┘  └──────────────────────┘    │
+        └───────┬───────────────────────┬────────────────┘
+                 │                       │
+                 ▼                       ▼
+      ┌────────────────────┐   ┌─────────────────────────┐
+      │   PostgreSQL DB     │   │   Terraform (IaC)        │
+      │  - Users             │   │  - main.tf / variables.tf │
+      │  - ResourceRequests  │   │  - EC2 resource block     │
+      │  - Deployments       │   │  - executed via CLI       │
+      └────────────────────┘   └────────────┬─────────────┘
+                                             │
+                                             ▼
+                                   ┌───────────────────┐
+                                   │     AWS Cloud       │
+                                   │  - EC2 Instance      │
+                                   │  - Security Group     │
+                                   │  - IAM Role (scoped)   │
+                                   └───────────────────┘
+```
+
+**Layer summary:**
+- **Frontend (React):** presentation only; talks to backend exclusively via REST, never touches AWS/Terraform directly.
+- **Backend (FastAPI):** single source of truth for auth, business rules, and orchestration. Owns the state machine for request status.
+- **Innovation Module:** pure rule-based logic (no external calls) — recommendation, cost, security score — runs synchronously when a request is created.
+- **Terraform Orchestrator:** a thin backend service that generates a `.tfvars` file per request and shells out to `terraform apply`, then parses `terraform output` / state file to capture instance ID and IP.
+- **Database:** system of record for users, requests, and deployment metadata — independent of whether AWS/Terraform succeeds or fails.
+- **AWS:** the only external system; accessed exclusively through Terraform, never via direct SDK calls from the backend (keeps provisioning auditable and reproducible).
+
+---
+
+## 2. User Workflow
+
+```
+ [Register/Login]
+        │
+        ▼
+ [User Dashboard]
+   - Total / Pending / Approved / Rejected / Provisioned counts
+        │
+        ▼
+ [New Resource Request]
+   - Fill form: workload level, OS, region, storage, purpose
+        │
+        ▼
+ [System auto-generates on submit]
+   - Recommended instance type
+   - Estimated monthly cost
+   - Security score
+        │
+        ▼
+ [User reviews & confirms submission]
+        │
+        ▼
+ [Request status = Pending]
+        │
+        ▼
+ [User waits / checks Request History page]
+        │
+        ▼
+ [Status updates automatically: Approved → Provisioning → Provisioned]
+        │                                   (or → Rejected / Failed)
+        ▼
+ [Provisioned request shows EC2 Instance ID + IP on dashboard]
+```
+
+---
+
+## 3. Admin Workflow
+
+```
+ [Admin Login]
+        │
+        ▼
+ [Admin Dashboard]
+   - List of all requests (all users), filterable by status
+        │
+        ▼
+ [Select a Pending request]
+        │
+        ▼
+ [View request details]
+   - User info, instance type, recommendation, cost estimate, security score
+        │
+        ▼
+   ┌────────────┴────────────┐
+   ▼                         ▼
+[Approve]                 [Reject]
+   │                         │
+   ▼                         ▼
+Status → Approved      Status → Rejected (End)
+   │
+   ▼
+Backend triggers Terraform Orchestrator
+   │
+   ▼
+Status → Provisioning (visible to admin & user in real time)
+   │
+   ▼
+Status → Provisioned / Failed
+   │
+   ▼
+Admin can view deployment result (instance ID, IP, or failure reason)
+```
+
+---
+
+## 4. AWS + Terraform Workflow
+
+```
+ [Request Approved by Admin]
+        │
+        ▼
+ [Backend: Terraform Orchestrator]
+   1. Generate request-specific *.tfvars
+      (instance_type, os_ami, region, storage_gb, tags)
+        │
+        ▼
+   2. Run: terraform init (once per environment)
+        │
+        ▼
+   3. Run: terraform plan -var-file=request_<id>.tfvars
+        │
+        ▼
+   4. Run: terraform apply -auto-approve -var-file=request_<id>.tfvars
+        │
+   ┌────┴────┐
+   ▼         ▼
+Success    Failure (e.g. quota, invalid AMI, permission error)
+   │         │
+   ▼         ▼
+5. Parse   5. Capture stderr/log
+terraform     │
+output        ▼
+   │       Status → Failed
+   ▼       (store error message for admin/user)
+Extract:
+ - instance_id
+ - public_ip
+ - state = "provisioned"
+   │
+   ▼
+Store in Deployments table, linked to ResourceRequest
+   │
+   ▼
+Status → Provisioned
+   │
+   ▼
+Reflected on User Dashboard + Admin Dashboard
+```
+
+**Key design decisions locked in for Day 2:**
+- Terraform runs **per-request** using a generated `.tfvars` file, not one shared config — keeps requests isolated and auditable.
+- Backend never calls the AWS SDK directly; **all AWS changes flow through Terraform** so state files remain the single source of truth for what's deployed.
+- Status transitions are **one-directional** (no going back from Provisioned to Pending) — simplifies the state machine and dashboard logic.
+- Terraform execution is **synchronous from the backend's point of view but async from the user's** — the API returns immediately after triggering, and the frontend polls status.
+
+---
+
+## 5. Success Criteria for Day 2
+- [x] System architecture diagram covering all layers (Frontend, Backend, DB, Terraform, AWS)
+- [x] User workflow diagrammed end-to-end
+- [x] Admin workflow diagrammed end-to-end
+- [x] AWS + Terraform orchestration workflow diagrammed with success/failure paths
+
+**Next (Day 3):** PostgreSQL table design, login page design, user dashboard design, admin dashboard design, resource request form design.

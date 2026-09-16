@@ -1,0 +1,81 @@
+# Day 6–7 – Authentication & Role-Based Access
+## AWS EC2 Self-Service Provisioning Portal
+
+---
+
+## 1. What We Built
+
+### Day 6 — Registration & Login
+
+| File | Purpose |
+|---|---|
+| `app/schemas.py` | Pydantic request/response models: `UserCreate`, `UserLogin`, `UserOut`, `Token` |
+| `app/auth.py` | Password hashing (via `bcrypt` directly) and JWT token creation/verification |
+| `app/dependencies.py` | `get_current_user` — decodes the JWT from a request and looks up the real user |
+| `app/routes_auth.py` | Three endpoints: `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
+
+**How it works:**
+- On registration, the password is hashed with bcrypt (never stored in plain text) and a new `User` row is created with `role = "user"` by default
+- On login, the submitted password is checked against the stored hash; if correct, a JWT access token is issued containing the user's ID and role
+- `/auth/me` is a protected route — it requires a valid token and returns the profile of whoever the token belongs to, proving the whole auth chain works
+
+### Day 7 — Role Enforcement
+
+| File | Purpose |
+|---|---|
+| `app/dependencies.py` (extended) | Added `require_admin` — builds on `get_current_user`, additionally checks the user's role is `admin` |
+| `app/routes_auth.py` (extended) | Added `GET /auth/admin-only` — a demo route only admins can successfully call |
+| `make_admin.py` | Standalone script to manually promote a user to admin by email |
+
+**Key design decision:** Admin status is **never** self-assignable through the API — nobody can register as admin. Promotion happens only via `make_admin.py`, run directly against the database. This matches real-world practice: admin access should always be a deliberate, out-of-band action, not something a user can grant themselves.
+
+`require_admin` checks the role stored in the **database** on every request, not just what's embedded in the token — so if an admin's role were ever revoked, their existing token would immediately stop granting admin access, rather than staying valid until it expires.
+
+---
+
+## 2. Verification Performed
+
+**Registration:**
+```
+POST /auth/register → 201, returns new user (no password in response)
+```
+
+**Login:**
+```
+POST /auth/login → 200, returns access_token + token_type
+```
+
+**Protected route (any logged-in user):**
+```
+GET /auth/me (with token) → 200, returns own profile
+```
+
+**Role enforcement:**
+```
+python make_admin.py test2@example.com → user promoted to admin
+GET /auth/admin-only (as regular user) → 403 Forbidden
+GET /auth/admin-only (as promoted admin, new token) → 200, "Role check passed"
+```
+
+---
+
+## 3. Problems Encountered & Fixed
+
+| # | Problem | Fix |
+|---|---|---|
+| 1 | `passlib`'s bcrypt backend threw `AttributeError: module 'bcrypt' has no attribute '__about__'` — a known compatibility break between `passlib` and newer `bcrypt` versions | Removed `passlib` entirely; rewrote `hash_password`/`verify_password` in `auth.py` to call the `bcrypt` library directly, sidestepping the broken version-detection code |
+| 2 | Registering with an email that was already used (from an earlier failed attempt) returned `400 Bad Request` | Expected behavior — confirmed the duplicate-email check works correctly; resolved by testing with a fresh email |
+| 3 | Wrong virtual environment activated multiple times (a stray `.venv` folder one level above the project) caused `ModuleNotFoundError` for packages that were actually installed correctly elsewhere | Standardized on activating `backend\venv` specifically; confirmed via `pip list` before running the server |
+
+> The `passlib`/`bcrypt` issue is a real, currently-known compatibility problem in the Python ecosystem (not a mistake in the original code) — worth mentioning in the report's challenges section, since working around broken third-party dependencies is a genuine part of backend development.
+
+---
+
+## 4. Success Criteria for Day 6–7
+- [x] Users can register with a hashed (never plain-text) password
+- [x] Users can log in and receive a valid JWT
+- [x] Protected routes correctly identify the logged-in user from their token
+- [x] Regular users are blocked (`403`) from admin-only actions
+- [x] Admin promotion is a deliberate, manual, out-of-band action — not user-controlled
+
+**Next (Day 8):** Build the resource-request API — `POST /requests`, `GET /requests`, `GET /requests/{id}` — using the auth and role system built today.

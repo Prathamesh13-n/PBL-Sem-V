@@ -1,0 +1,144 @@
+DAY 14-15 SUMMARY
+AWS EC2 Self-Service Provisioning Portal
+==========================================
+
+
+===========================================================
+DAY 14 - NEW RESOURCE REQUEST FORM
+===========================================================
+
+WHAT WE BUILT
+--------------
+1. pages/NewRequest.jsx (new)
+   - Real form replacing the Day 12/13 placeholder route
+   - Workload Level shown as three selectable cards (Low / Medium /
+     High), each with a short helper description - this is the field
+     the future recommendation engine (Day 26) will read
+   - Operating System and Region as dropdowns (kept to the 2 options
+     each defined back on Day 1, no scope creep)
+   - Storage as a number input (8-500 GB)
+   - Purpose as an optional text area
+   - On submit, calls POST /requests and redirects to /dashboard
+   - Shows a clear error message if submission fails
+
+2. App.jsx - wired /requests/new to the real NewRequest page
+   (replacing the "coming soon" placeholder from Day 13)
+
+3. App.css - added styling for the form, the workload radio cards,
+   and a "back to dashboard" link in the topbar
+
+VERIFICATION PERFORMED
+------------------------
+[x] Registered a fresh test account (demo@example.com)
+[x] Filled out and submitted the New Request form
+[x] Confirmed redirect to /dashboard afterward
+[x] Confirmed the new request appeared in the dashboard table with
+    status "Pending"
+
+PROBLEMS ENCOUNTERED AND FIXED (also affecting Login/Register)
+------------------------------------------------------------------
+1. Password "Show" toggle button rendered oversized and overlapping
+   the Login button. Root cause: a CSS rule intended only for the
+   submit button (width: 100%, teal background) was written generically
+   as ".auth-form button", so it applied to every button in the form,
+   including the toggle.
+   Fix: scoped that rule specifically to button[type="submit"].
+
+2. Typed text in the Email/Password fields was invisible on some
+   screens. Root cause: index.css still contained the original Vite
+   template's demo styling, including a @media (prefers-color-scheme:
+   dark) block that overrode text color based on the visitor's system/
+   browser theme - a leftover from Day 11 that was never fully cleaned
+   out.
+   Fix: replaced index.css with a minimal reset, and added an explicit
+   color rule for inputs/selects/textareas/buttons in App.css so form
+   text is never affected by the visitor's system theme.
+
+SUCCESS CRITERIA FOR DAY 14
+------------------------------
+[x] Real, working request submission form
+[x] Wired to the actual backend endpoint (not a mock)
+[x] Two unrelated but real CSS bugs found and fixed along the way
+
+
+===========================================================
+DAY 15 - REQUEST DETAIL PAGE
+===========================================================
+
+WHAT WE BUILT
+--------------
+1. pages/RequestDetail.jsx (new)
+   - Replaces the last remaining "coming soon" placeholder
+   - Shows every field of a single request: resource type, workload
+     level, instance type, OS, region, storage, purpose, estimated
+     cost, security score, and created date
+   - For ADMIN users only, shows context-aware action buttons based on
+     the request's current status:
+       status = pending      -> Approve / Reject buttons
+       status = approved     -> Start Provisioning button
+       status = rejected / provisioning / provisioned / failed
+                              -> "No further actions available"
+   - Reject shows an optional reason text box before confirming
+   - After any action, the page automatically reloads the request so
+     the status badge updates immediately without a manual refresh
+   - Regular (non-admin) users see the same detail view with NO action
+     buttons - read-only, matching the backend's permission rules
+
+2. App.jsx - wired /requests/:id to the real RequestDetail page
+
+3. App.css - added styling for the detail card, admin action buttons,
+   and the reject-reason box
+
+FOLLOW-UP FIX: PER-USER REQUEST NUMBERING
+---------------------------------------------
+Issue raised: a new user's first-ever request showed as "#4" (or
+whatever the next global database row happened to be), which looked
+confusing - a user with only one request expects to see "#1", not an
+arbitrary large number.
+
+Root cause: the database id is a single global sequence shared across
+ALL users (correct and necessary for uniqueness), but the UI was
+displaying that raw id directly to the user.
+
+Fix: added a per-user "display number", computed on the frontend only.
+Each user's own requests are sorted by creation date and numbered 1, 2,
+3... independently of the underlying database id. The real database id
+is still used internally for URLs and admin actions - only what the
+USER SEES on screen changed. Admins still see the real id, since they
+are viewing every user's requests mixed together, where per-user
+numbering would not make sense.
+
+Also fixed in the same pass: the workload-level radio buttons were
+rendering in the browser's default blue instead of the site's teal
+accent color - fixed with an accent-color CSS property.
+
+Applied consistently to both the Dashboard table and the Request
+Detail page header.
+
+VERIFICATION PERFORMED
+------------------------
+[x] Logged in as admin, opened a pending request - saw Approve/Reject
+    buttons, both wired to the correct backend endpoints
+[x] Approved a request - status badge updated immediately to
+    "Approved" without a manual page refresh
+[x] Logged in as demo@example.com (regular user, only 1 request) -
+    dashboard and detail page now correctly show "#1" instead of the
+    raw database id
+[x] Confirmed admin view still shows real database ids (unaffected)
+
+SUCCESS CRITERIA FOR DAY 15
+------------------------------
+[x] Full request detail view for all users
+[x] Admin-only approve/reject/provisioning actions, correctly
+    permission-gated to match the backend
+[x] Per-user request numbering fixed for a clearer user experience
+[x] Live status updates after admin actions, no manual refresh needed
+
+
+===========================================================
+NEXT (DAY 16)
+===========================================================
+Build the dedicated Admin Dashboard - a full-width view listing every
+user's requests (not just one at a time), with the fuller sidebar-style
+layout discussed on Day 13, using the reference mockups as a guide
+scoped to what the backend actually supports.

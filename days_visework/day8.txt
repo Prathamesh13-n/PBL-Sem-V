@@ -1,0 +1,117 @@
+DAY 8 - RESOURCE REQUEST API
+AWS EC2 Self-Service Provisioning Portal
+==========================================
+
+WHAT WE BUILT
+--------------
+
+Files created/updated:
+
+1. app/schemas.py (updated)
+   - Added ResourceRequestCreate (what the user submits)
+   - Added ResourceRequestOut (what the API returns)
+
+2. app/routes_requests.py (new)
+   - POST   /requests         -> create a new EC2 resource request
+   - GET    /requests         -> list requests (own only for users, all for admins)
+   - GET    /requests/{id}    -> get a single request (ownership-checked)
+
+3. app/main.py (updated)
+   - Registered the new requests router
+
+HOW IT WORKS
+------------
+
+- POST /requests creates a request tied to whoever is logged in (via their
+  JWT token) - the user cannot set user_id manually, it comes from auth.
+- New requests always start with status = "pending".
+- instance_type, estimated_cost, and security_score are left empty (null)
+  at creation time - these get filled in later by the Day 26-28
+  recommendation, cost estimation, and security validation modules.
+- GET /requests returns only the logged-in user's own requests, UNLESS
+  they are an admin, in which case it returns everyone's requests
+  (this is what the Day 16 admin dashboard will use).
+- GET /requests/{id} blocks a regular user from viewing someone else's
+  request (403 Forbidden), but allows admins to view any request.
+
+VERIFICATION PERFORMED
+------------------------
+
+Tested all three endpoints live through Swagger UI (http://127.0.0.1:8000/docs):
+
+1. POST /requests
+   Request:
+   {
+     "workload_level": "medium",
+     "os": "Ubuntu 22.04",
+     "region": "ap-south-1",
+     "storage_gb": 20,
+     "purpose": "Testing the request API"
+   }
+   Result: 201 Created
+   {
+     "id": 1,
+     "user_id": 2,
+     "resource_type": "EC2",
+     "workload_level": "medium",
+     "instance_type": null,
+     "os": "Ubuntu 22.04",
+     "region": "ap-south-1",
+     "storage_gb": 20,
+     "purpose": "Testing the request API",
+     "estimated_cost": null,
+     "security_score": null,
+     "status": "pending",
+     "created_at": "2026-08-19T03:47:38.347364",
+     "updated_at": "2026-08-19T03:47:38.347367"
+   }
+
+2. GET /requests
+   Result: 200 OK - returned an array containing the request created above.
+
+3. GET /requests/1
+   Result: 200 OK - returned that same single request object.
+
+All three checks passed successfully.
+
+PROBLEMS ENCOUNTERED AND FIXED
+---------------------------------
+
+1. File saved with incorrect capitalization (Routes_requests.py instead of
+   routes_requests.py) caused an import error, since Python's import
+   statement used the lowercase name.
+   Fix: Renamed the file to lowercase using Rename-Item.
+
+2. A stray, unrelated virtual environment (.venv) one level above the
+   project folder kept getting activated by accident instead of the
+   correct one (backend\venv), causing "module not found" errors even
+   though the packages were correctly installed elsewhere.
+   Fix: Permanently deleted the stray .venv folder so it can no longer be
+   activated by mistake; standardized on backend\venv going forward.
+
+3. VS Code's editor showed "import could not be resolved" warnings because
+   its selected Python interpreter did not match the project's venv.
+   Fix: Manually pointed VS Code to
+   D:\cloud resourse provider protal\backend\venv\Scripts\python.exe
+   via "Python: Select Interpreter" > "Enter interpreter path".
+
+4. Briefly tested the wrong endpoint (GET /requests instead of POST
+   /requests) since both appear close together on the Swagger page.
+   Fix: Located the green POST /requests ("Create Request") entry
+   specifically, as opposed to the blue GET one.
+
+SUCCESS CRITERIA FOR DAY 8
+-----------------------------
+[x] POST /requests creates a request tied to the logged-in user
+[x] GET /requests correctly scopes results by role (own vs. all)
+[x] GET /requests/{id} enforces ownership rules
+[x] All three endpoints verified live via Swagger UI
+
+NEXT (DAY 9)
+-------------
+Implement the full request status lifecycle:
+  pending -> approved / rejected
+  approved -> provisioning -> provisioned / failed
+
+This includes the admin approve/reject actions that the Day 16 admin
+dashboard will call.

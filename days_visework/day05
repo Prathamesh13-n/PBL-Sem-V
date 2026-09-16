@@ -1,0 +1,81 @@
+# Day 5 – Database Models (Users, Resource Requests, Deployments)
+## AWS EC2 Self-Service Provisioning Portal
+
+---
+
+## 1. What We Built
+
+### Files Created/Updated
+
+| File | Purpose |
+|---|---|
+| `app/models.py` | SQLAlchemy models defining the three database tables, matching the Day 3 schema design |
+| `init_db.py` | Standalone script that creates all tables in the database (safe to re-run — never overwrites existing data) |
+| `app/main.py` | Updated with a new `/db-check` endpoint to verify tables exist |
+
+### Tables Defined (in `models.py`)
+
+**`User`**
+- `id`, `full_name`, `email` (unique), `password_hash`, `role` (`user`/`admin`), `created_at`
+- Relationship: one user → many resource requests
+
+**`ResourceRequest`**
+- `id`, `user_id` (FK → users), `resource_type`, `workload_level` (`low`/`medium`/`high`), `instance_type`, `os`, `region`, `storage_gb`, `purpose`
+- `estimated_cost`, `security_score` — filled in later by the Day 26–28 recommendation/cost/security modules
+- `status` (`pending` / `approved` / `rejected` / `provisioning` / `provisioned` / `failed`)
+- `reviewed_by` (FK → users, the approving admin), `created_at`, `updated_at`
+- Relationships: belongs to one user, has one deployment
+
+**`Deployment`**
+- `id`, `request_id` (FK → resource_requests, unique — one deployment per request)
+- `instance_id`, `public_ip`, `terraform_state_path`
+- `deployment_status` (`provisioning` / `provisioned` / `failed` / `destroyed`)
+- `error_message`, `provisioned_at`, `destroyed_at`
+- Relationship: belongs to one resource request
+
+**Design notes carried over from Day 3:**
+- All three status fields use proper enums (not free-text strings) to prevent invalid values from ever being stored
+- `destroyed_at` on `Deployment` supports the cost-control habit of destroying AWS resources between sessions
+- `Deployment` is kept as a separate table from `ResourceRequest` so infrastructure metadata stays isolated from business/request data
+
+---
+
+## 2. Verification Performed
+
+- [x] Ran `python init_db.py` → successfully created all three tables:
+  ```
+  Creating tables...
+  Done. Tables created:
+    - users
+    - resource_requests
+    - deployments
+  ```
+- [x] Restarted the server and checked the new `/db-check` endpoint:
+  ```
+  http://127.0.0.1:8000/db-check
+  → {"tables_found": ["users", "resource_requests", "deployments"]}
+  ```
+- [x] Confirmed tables persist in `portal.db` (SQLite file) and are reachable through the API, not just created in isolation
+
+---
+
+## 3. Problems Encountered & Fixed
+
+| # | Problem | Fix |
+|---|---|---|
+| 1 | Wrong virtual environment active (`.venv` instead of `venv`) caused file-not-found errors | Deactivated and reactivated the correct `venv` |
+| 2 | File saved with a typo (`lint_db.py` instead of `init_db.py`) | Renamed using `Rename-Item` |
+| 3 | File saved with incorrect capitalization (`Models.py` instead of `models.py`) — would have broken the `from app import models` import | Renamed to lowercase to match the import statement exactly |
+| 4 | `init_db.py` initially placed inside `app/` instead of the outer `backend/` folder | Moved one level up using `Move-Item` |
+
+> Reinforces a pattern from Day 4: exact file names, capitalization, and folder placement matter in Python imports — these are quick fixes once spotted, and good practice for catching them early.
+
+---
+
+## 4. Success Criteria for Day 5
+- [x] All three tables designed in Day 3 now exist as real SQLAlchemy models
+- [x] Tables successfully created in the actual database
+- [x] Verified via a live API endpoint, not just script output
+- [x] Relationships (User ↔ ResourceRequest ↔ Deployment) correctly defined
+
+**Next (Day 6):** Implement user registration and login — this is where `password_hash` and JWT authentication actually get used for the first time.

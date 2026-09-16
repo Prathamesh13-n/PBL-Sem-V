@@ -1,0 +1,105 @@
+DAY 12 - REACT LOGIN & REGISTRATION PAGES
+AWS EC2 Self-Service Provisioning Portal
+==========================================
+
+WHAT WE BUILT
+--------------
+
+New folders created inside frontend/src/:
+- api/          (centralized backend connection)
+- context/      (shared login state across the app)
+- pages/        (Login, Register, Dashboard)
+- components/   (reusable pieces, starting with route protection)
+
+Files created:
+
+1. api/client.js
+   - A single axios instance used for every API call in the app
+   - Automatically attaches the saved JWT token to every outgoing
+     request, so individual pages never have to handle that manually
+
+2. context/AuthContext.jsx
+   - Central place that tracks "who is logged in" for the whole app
+   - Provides login(), register(), and logout() functions
+   - On page refresh, automatically checks for a saved token and
+     restores the session instead of logging the user out
+
+3. pages/Login.jsx
+   - Email/password form
+   - Calls /auth/login, saves the token, fetches the user's own
+     profile, then redirects to /dashboard
+   - Shows a clear error message on wrong credentials
+
+4. pages/Register.jsx
+   - Full name / email / password form
+   - Calls /auth/register, shows a success message, then redirects
+     to /login after a short delay
+   - Shows a clear error message on duplicate email etc.
+
+5. pages/Dashboard.jsx
+   - Placeholder page for now - shows the logged-in user's name and
+     role, plus a Logout button
+   - The real version (request counts, history table) is built Day 13
+
+6. components/ProtectedRoute.jsx
+   - Wraps the /dashboard route
+   - If nobody is logged in, redirects to /login automatically
+   - Prevents reaching the dashboard just by typing the URL directly
+
+7. App.jsx (rewritten)
+   - Sets up all page routes using react-router-dom
+   - /login, /register, /dashboard (protected), and a fallback that
+     sends any unknown URL to /login
+
+8. main.jsx (rewritten)
+   - Wraps the whole app in BrowserRouter (for routing) and
+     AuthProvider (for shared login state)
+
+9. App.css (rewritten)
+   - Styling for the login/register forms and dashboard page
+
+VERIFICATION PERFORMED
+------------------------
+[x] Registered a new account (dayuser@example.com) - success message shown,
+    auto-redirected to login
+[x] Logged in with that account - redirected to /dashboard, showing
+    correct name ("Welcome, dayuser") and role ("Role: user")
+[x] Clicked Logout - correctly redirected back to /login
+[x] Tried visiting /dashboard directly WITHOUT being logged in -
+    correctly redirected to /login instead of showing the page
+    (proves the route guard works, not just the happy path)
+
+PROBLEMS ENCOUNTERED AND FIXED
+---------------------------------
+
+1. File naming confusion during manual verification - a screenshot of
+   the pages folder was briefly misread as a typo ("Dashbaord.jsx"
+   instead of "Dashboard.jsx"). Double-checked directly with `dir` in
+   the actual folder and confirmed the file was correctly named all
+   along - a false alarm, not a real bug.
+
+2. CORS blocked registration - the browser console showed:
+     "Access to XMLHttpRequest ... has been blocked by CORS policy"
+   Root cause: an earlier npm run dev process was still occupying
+   port 5173, so this session's Vite server automatically started on
+   port 5174 instead. The backend's CORS settings only allowed 5173,
+   so it rejected requests coming from 5174.
+   Fix: Added http://localhost:5174 (and 127.0.0.1:5174) to the
+   backend's allowed CORS origins in app/main.py, so it now accepts
+   requests from either port. Recommended going forward: check for
+   and close any leftover npm run dev terminals before starting a new
+   one, to keep the frontend consistently on port 5173.
+
+SUCCESS CRITERIA FOR DAY 12
+------------------------------
+[x] Real registration form, wired to the backend, with error handling
+[x] Real login form, wired to the backend, with error handling
+[x] Session persists across page refresh (via saved token)
+[x] Protected routes correctly block unauthenticated access
+[x] Logout correctly clears the session
+
+NEXT (DAY 13)
+--------------
+Replace the placeholder Dashboard with the real version: summary cards
+(Total / Pending / Approved / Rejected / Provisioned counts) and a
+request history table, both pulling live data from GET /requests.

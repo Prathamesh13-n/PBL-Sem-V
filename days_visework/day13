@@ -1,0 +1,92 @@
+DAY 13 SUMMARY - USER DASHBOARD (BUILT + DESIGNED)
+AWS EC2 Self-Service Provisioning Portal
+==========================================
+
+WHAT WE BUILT
+--------------
+
+1. Replaced the Day 12 placeholder Dashboard.jsx with a real, working
+   dashboard that pulls live data from GET /requests.
+
+2. Summary cards (Total / Pending / Approved / Rejected / Provisioned) -
+   computed directly from the loaded request list, no extra API call
+   needed.
+
+3. Request history table - shows ID, instance type, OS, region, a
+   color-coded status badge, and created date for every request.
+   Clicking a row is wired to navigate to a request detail page
+   (placeholder for now, real version comes Day 15).
+
+4. "+ New Request" button - wired to navigate to /requests/new
+   (placeholder for now, real form comes Day 14).
+
+5. Visual redesign - replaced the generic default styling with a
+   distinctive design system:
+   - Color palette: dark ink header/login screen, teal accent
+     (instead of generic purple/terracotta), cool slate background
+   - Typography: Space Grotesk for headings, IBM Plex Mono for
+     technical data (IDs, instance types, regions, status badges) -
+     monospace makes sense here since it's genuinely infrastructure
+     data, not just decoration
+   - Layout: replaced 5 identical white "SaaS card kit" boxes with a
+     single connected "status ledger" strip (more like a systems
+     dashboard than a generic metrics wall)
+   - Added a dark topbar to the dashboard showing the wordmark and
+     logged-in user's email
+
+6. Added a show/hide password toggle to both the Login and Register
+   forms (a "Show"/"Hide" text button inside the password field).
+
+VERIFICATION PERFORMED
+------------------------
+[x] Logged in as test2@example.com (admin) - dashboard correctly
+    showed 3 Total, 1 Rejected, 2 Provisioning, matching exactly what
+    was created during Day 9/10 testing
+[x] Table displayed all 3 requests with correct OS, region, and
+    color-coded status badges
+[x] Confirmed dayuser@example.com correctly shows an EMPTY dashboard -
+    this is correct behavior, not a bug, since that account has no
+    requests of its own (ownership rules from Day 8 working as intended)
+[x] New design system verified with a clean production build
+    (npm run build - no errors)
+[x] Password show/hide toggle tested and working on both forms
+
+DESIGN REFERENCE DISCUSSION
+------------------------------
+The user shared reference mockups showing a fuller sidebar-based
+dashboard style (separate nav items for Users, Roles & Permissions,
+Deployments, Cost Overview, Audit Logs, etc.) for both a User and an
+Admin view.
+
+Decision made: rather than rebuilding today's dashboard to match this
+immediately, we mapped each element in the reference to where it
+already fits in the 35-day plan:
+- Summary cards + status donut chart + request table -> already
+  covered by Day 13 (today) and Day 16 (admin version)
+- "New Request" / "Smart Recommendation" / "Cost Estimation" cards ->
+  Day 14, Day 26, and Day 27 respectively
+- Sidebar nav items like Users, Roles & Permissions, Audit Logs, Cost
+  Overview as separate pages, and the "Auto Stop Policy" banner -> NOT
+  part of the original 35-day scope; flagged as optional stretch goals
+  only if time remains near the end, to avoid scope creep before the
+  Oct/Nov deadline
+
+Agreed plan: apply the fuller sidebar/full-width visual style
+specifically on Day 16 (Admin Dashboard) and do a final polish pass on
+Day 17, once real backend data (approvals, deployments) exists to
+populate it - rather than building an elaborate UI now and having to
+redo it later.
+
+SUCCESS CRITERIA FOR DAY 13
+------------------------------
+[x] Real dashboard replacing the placeholder, using live backend data
+[x] Verified with two different accounts (regular user + admin)
+[x] Distinctive visual design applied (not generic template styling)
+[x] Scope for remaining frontend days clarified against a design
+    reference, without committing to unplanned extra work
+
+NEXT (DAY 14)
+--------------
+Build the actual "New Resource Request" form (replacing the current
+placeholder route), with fields for workload level, OS, region,
+storage, and purpose - wired to POST /requests.

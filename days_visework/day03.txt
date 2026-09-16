@@ -1,0 +1,161 @@
+# Day 3 – Database & UI Design
+## AWS EC2 Self-Service Provisioning Portal
+
+---
+
+## 1. PostgreSQL Database Design
+
+### Table: `users`
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | SERIAL / UUID | PRIMARY KEY |
+| full_name | VARCHAR(100) | NOT NULL |
+| email | VARCHAR(150) | UNIQUE, NOT NULL |
+| password_hash | VARCHAR(255) | NOT NULL |
+| role | VARCHAR(10) | NOT NULL, CHECK (role IN ('user','admin')), DEFAULT 'user' |
+| created_at | TIMESTAMP | DEFAULT now() |
+
+### Table: `resource_requests`
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | SERIAL / UUID | PRIMARY KEY |
+| user_id | INTEGER/UUID | FOREIGN KEY → users(id), NOT NULL |
+| resource_type | VARCHAR(20) | DEFAULT 'EC2' |
+| workload_level | VARCHAR(10) | CHECK (workload_level IN ('low','medium','high')) |
+| instance_type | VARCHAR(20) | e.g. t3.micro (recommended, editable) |
+| os | VARCHAR(30) | e.g. 'Amazon Linux 2', 'Ubuntu 22.04' |
+| region | VARCHAR(20) | e.g. 'ap-south-1' |
+| storage_gb | INTEGER | NOT NULL |
+| purpose | TEXT | user's justification |
+| estimated_cost | NUMERIC(10,2) | in ₹, from cost estimation module |
+| security_score | INTEGER | 0–100, from security validation module |
+| status | VARCHAR(15) | CHECK (status IN ('pending','approved','rejected','provisioning','provisioned','failed')), DEFAULT 'pending' |
+| reviewed_by | INTEGER/UUID | FOREIGN KEY → users(id), NULLABLE (admin who approved/rejected) |
+| created_at | TIMESTAMP | DEFAULT now() |
+| updated_at | TIMESTAMP | auto-updated on status change |
+
+### Table: `deployments`
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | SERIAL / UUID | PRIMARY KEY |
+| request_id | INTEGER/UUID | FOREIGN KEY → resource_requests(id), UNIQUE, NOT NULL |
+| instance_id | VARCHAR(50) | NULLABLE (AWS EC2 instance ID once created) |
+| public_ip | VARCHAR(20) | NULLABLE |
+| terraform_state_path | VARCHAR(255) | path/reference to state file for this request |
+| deployment_status | VARCHAR(15) | CHECK (deployment_status IN ('provisioning','provisioned','failed','destroyed')) |
+| error_message | TEXT | NULLABLE — populated on failure |
+| provisioned_at | TIMESTAMP | NULLABLE |
+| destroyed_at | TIMESTAMP | NULLABLE — for cost control (Day 25/testing cleanup) |
+
+**Relationships:**
+```
+users (1) ──< (many) resource_requests
+resource_requests (1) ──< (1) deployments
+```
+
+**Design notes:**
+- `deployments` is a separate table from `resource_requests` (not merged) so infra metadata stays isolated from business/request data — cleaner for the Terraform orchestrator to read/write.
+- `destroyed_at` is included from Day 3 onward specifically to support the cost-control habit we discussed (destroy after each session) — this is not an afterthought bolted on later.
+- `estimated_cost` and `security_score` are stored on the request itself (not recomputed later) so historical requests keep the numbers that were true at submission time.
+
+---
+
+## 2. UI Page Designs (Wireframe-Level)
+
+### Login Page
+
+```
+┌─────────────────────────────────────┐
+│         Cloud Provisioning Portal     │
+│                                       │
+│   Email     [______________________] │
+│   Password  [______________________] │
+│                                       │
+│           [    Login    ]            │
+│                                       │
+│   Don't have an account? Register    │
+└─────────────────────────────────────┘
+```
+- Single form, client-side validation (required fields, email format)
+- On submit → POST `/auth/login` → JWT stored client-side → redirect based on `role` (user → user dashboard, admin → admin dashboard)
+
+### User Dashboard
+
+```
+┌───────────────────────────────────────────────────┐
+│  Welcome, {name}                    [+ New Request] │
+├───────────────────────────────────────────────────┤
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐       │
+│  │ Total  │ │Pending │ │Approved│ │Provsnd │       │
+│  │   12   │ │   3    │ │   6    │ │   5    │       │
+│  └────────┘ └────────┘ └────────┘ └────────┘       │
+├───────────────────────────────────────────────────┤
+│  Recent Requests                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ ID  Instance   Status        Date            │   │
+│  │ #12 t3.micro   Provisioned   12 Aug 2026      │   │
+│  │ #11 t3.small   Pending       10 Aug 2026      │   │
+│  │ ...                                            │   │
+│  └─────────────────────────────────────────────┘   │
+└───────────────────────────────────────────────────┘
+```
+- Summary cards computed via `GET /requests/summary` (counts grouped by status)
+- Table links to a detail view showing recommendation, cost, security score, and (if provisioned) instance ID + IP
+
+### Admin Dashboard
+
+```
+┌───────────────────────────────────────────────────┐
+│  Admin Panel                    Filter: [ All ▾ ]   │
+├───────────────────────────────────────────────────┤
+│  ID  User        Instance   Cost   Score  Status     │
+│  #14 rahul@..    t3.medium  ₹450   72     Pending     │
+│       [View]  [Approve]  [Reject]                    │
+│  #13 asha@..     t3.micro   ₹150   90     Pending     │
+│       [View]  [Approve]  [Reject]                    │
+│  #12 rahul@..    t3.micro   ₹150   90     Provisioned │
+│       [View]                                          │
+│  ...                                                  │
+└───────────────────────────────────────────────────┘
+```
+- Table of all requests across all users, filterable by status
+- Approve/Reject buttons only shown for `pending` requests
+- Approve → PATCH `/requests/{id}/approve` → backend flips status and triggers Terraform orchestrator
+
+### New Resource Request Form
+
+```
+┌─────────────────────────────────────────────┐
+│  New EC2 Resource Request                     │
+│                                               │
+│  Workload Level   ( ) Low  ( ) Medium ( ) High │
+│  Operating System [ Amazon Linux 2      ▾ ]    │
+│  Region           [ ap-south-1          ▾ ]    │
+│  Storage (GB)     [ 20 ]                       │
+│  Purpose          [_____________________]     │
+│                                               │
+│  ── Auto-generated on Workload selection ──   │
+│  Recommended Instance: t3.micro                │
+│  Estimated Monthly Cost: ₹XXX                  │
+│  Security Score: 85/100                        │
+│                                               │
+│              [ Submit Request ]                │
+└─────────────────────────────────────────────┘
+```
+- Instance type is **not** a free-text/dropdown the user picks directly — it's derived from `workload_level` via the recommendation engine (Day 26), shown read-only with the option to see "why" (tooltip/expand)
+- Cost and security score fields recalculate live (frontend calls a lightweight `/estimate` endpoint) as the user changes OS/region/storage — no page reload needed
+- Submit → POST `/requests` → stores everything, status = `pending`
+
+---
+
+## 3. Success Criteria for Day 3
+- [x] All three tables designed with columns, types, and relationships
+- [x] Login page wireframe
+- [x] User dashboard wireframe
+- [x] Admin dashboard wireframe
+- [x] Resource request form wireframe (with recommendation/cost/security tie-in)
+
+**Next (Day 4):** Backend setup — Python, FastAPI, PostgreSQL, Git/GitHub project scaffolding.
