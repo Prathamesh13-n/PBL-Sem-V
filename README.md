@@ -1,82 +1,62 @@
-flowchart TD
+# Portal Application
 
-subgraph group_client["React Client"]
-  node_app["Route Shell<br/>[App.jsx]"]
-  node_auth_context["Auth Context<br/>[AuthContext.jsx]"]
-  node_protected_route["Protected Routes<br/>[ProtectedRoute.jsx]"]
-  node_request_detail["Request Detail<br/>[RequestDetail.jsx]"]
-  node_request_forms["Request Pages"]
-  node_api_client["API Client<br/>[client.js]"]
-end
+A full-stack portal application built with a **React frontend** and **FastAPI backend**, providing authentication, role-based access control, request management, and database persistence.
 
-subgraph group_api["FastAPI API"]
-  node_api_main["API Application<br/>[main.py]"]
-  node_auth_routes["Auth Routes<br/>[routes_auth.py]"]
-  node_auth_service["Token Service<br/>[auth.py]"]
-  node_access_control["Access Control<br/>[dependencies.py]"]
-end
+The application supports two main roles:
 
-subgraph group_workflow["Request Workflow"]
-  node_request_routes["Request Routes<br/>[routes_requests.py]"]
-  node_request_state["Status Transitions<br/>[routes_requests.py]"]
-  node_request_model["Request Model<br/>[models.py]"]
-  node_schemas["API Schemas<br/>[schemas.py]"]
-end
+- **User** – Can access protected pages and submit/manage requests.
+- **Administrator** – Has administrative access and can manage requests and system-level operations.
 
-subgraph group_persistence["Persistence"]
-  node_database_session["Database Session<br/>[database.py]"]
-  node_portal_db[("Portal Database<br/>[portal.db]")]
-end
+---
 
-node_user(("User"))
-node_admin(("Administrator"))
+## 🏗️ System Architecture
 
-node_user -->|"uses"| node_app
-node_admin -->|"uses"| node_app
-node_app -->|"provides auth"| node_auth_context
-node_app -->|"guards pages"| node_protected_route
-node_auth_context -->|"calls API"| node_api_client
-node_request_detail -->|"loads actions"| node_api_client
-node_request_forms -->|"submits requests"| node_api_client
-node_api_client -->|"sends HTTP"| node_api_main
-node_api_main -->|"dispatches auth"| node_auth_routes
-node_api_main -->|"dispatches requests"| node_request_routes
-node_auth_routes -->|"hashes tokens"| node_auth_service
-node_auth_routes -->|"checks identity"| node_access_control
-node_request_routes -->|"checks roles"| node_access_control
-node_request_routes -->|"changes status"| node_request_state
-node_request_routes -->|"creates queries"| node_request_model
-node_request_routes -->|"validates data"| node_schemas
-node_auth_routes -->|"reads writes"| node_database_session
-node_request_routes -->|"reads writes"| node_database_session
-node_database_session -->|"persists data"| node_portal_db
+The application follows a layered architecture consisting of:
 
-click node_app "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/frontend/src/App.jsx"
-click node_auth_context "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/frontend/src/context/AuthContext.jsx"
-click node_protected_route "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/frontend/src/components/ProtectedRoute.jsx"
-click node_request_detail "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/frontend/src/pages/RequestDetail.jsx"
-click node_request_forms "https://github.com/prathamesh13-n/pbl-sem-v/tree/main/frontend/src/pages"
-click node_api_client "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/frontend/src/api/client.js"
-click node_api_main "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/main.py"
-click node_auth_routes "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/routes_auth.py"
-click node_request_routes "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/routes_requests.py"
-click node_auth_service "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/auth.py"
-click node_access_control "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/dependencies.py"
-click node_request_state "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/routes_requests.py"
-click node_request_model "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/models.py"
-click node_schemas "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/schemas.py"
-click node_database_session "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/app/database.py"
-click node_portal_db "https://github.com/prathamesh13-n/pbl-sem-v/blob/main/backend/portal.db"
+1. React Client
+2. FastAPI API
+3. Authentication & Authorization
+4. Request Workflow
+5. Database Persistence
 
-classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
-classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
-classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
-classDef toneMint fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
-classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
-classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
-classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
-class node_app,node_auth_context,node_protected_route,node_request_detail,node_request_forms,node_api_client,node_user toneBlue
-class node_api_main,node_auth_routes,node_auth_service,node_access_control toneAmber
-class node_request_routes,node_request_state,node_request_model,node_schemas toneMint
-class node_database_session,node_portal_db toneRose
-class node_admin toneIndigo
+### Architecture Diagram
+
+![System Architecture](diagram.png)
+
+---
+
+## 🚀 Technology Stack
+
+### Frontend
+
+- React
+- JavaScript
+- React Router
+- Context API
+- HTTP/REST API
+
+### Backend
+
+- Python
+- FastAPI
+- Pydantic
+- Authentication Routes
+- Role-Based Access Control
+
+### Database
+
+- SQLite / Portal Database
+- Database Session Management
+
+### Architecture
+
+- REST API
+- Token-Based Authentication
+- Protected Routes
+- Role-Based Authorization
+- Request Workflow
+
+---
+
+## 📁 Project Structure
+cruuently not there... 
