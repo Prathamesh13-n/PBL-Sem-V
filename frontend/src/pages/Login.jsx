@@ -21,7 +21,7 @@ function Login() {
       const user = await login(email, password)
       // Send admins and regular users to the same dashboard for now —
       // Day 16 will split this into separate admin/user dashboards.
-      navigate('/dashboard')
+      navigate(user.role === 'admin' ? '/admin' : '/dashboard')
     } catch (err) {
       const detail = err.response?.data?.detail
       setError(detail || 'Login failed. Please check your credentials.')

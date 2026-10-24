@@ -1,0 +1,46 @@
+# Day 16-17 Summary: Admin Dashboard and Frontend-Backend Integration
+
+
+
+## Goal
+Give admins their own dashboard to review and act on every resource request, connected to the live FastAPI backend.
+
+## What was built
+1. **Admin dashboard page** (`pages/AdminDashboard.jsx`, `pages/admin.css`)
+   - Sidebar layout: Overview, My requests, New request, logged-in email, Log out.
+   - Six status cards (pending, approved, provisioning, provisioned, rejected, failed) with live counts. Clicking a card filters the table.
+   - SVG donut chart of requests by status (no chart library).
+   - Requests table (ID, user, instance, OS, cost, status) with a status filter dropdown.
+   - Row actions, shown only when valid for the status: Approve and Reject (asks for a reason) on pending, Provision on approved.
+   - Loading and error messages, and horizontal scroll for the table on small screens.
+2. **Admin route guard** (`components/AdminRoute.jsx`): not logged in goes to /login, a non-admin goes to /dashboard, an admin sees /admin.
+3. **Routing** (`App.jsx`): added `/admin`. App.jsx now holds routes only. BrowserRouter and AuthProvider stay in main.jsx.
+4. **Login redirect** (`Login.jsx`): admins go to /admin, users go to /dashboard.
+
+## API endpoints used
+- GET /requests (admins receive all requests)
+- PATCH /requests/{id}/approve
+- PATCH /requests/{id}/reject (body: reason)
+- PATCH /requests/{id}/start-provisioning
+
+## Problems met and fixes
+| Problem | Cause | Fix |
+|---|---|---|
+| "Already included file name ... differs only in casing" | File saved as Admindashboard.jsx and AdminDashboard.css | Renamed to AdminDashboard.jsx and admin.css, then Reload Window |
+| "Cannot render a Router inside another Router" | BrowserRouter in both main.jsx and App.jsx | App.jsx now contains only Routes |
+| "A module cannot have multiple default exports" | New App code pasted below the old code | Replaced the whole file via a PowerShell here-string |
+| 403 on GET /requests/6 | Opened a request the logged-in account does not own | Expected backend behavior; admins can open any request |
+| Admin landed on /dashboard | Login.jsx redirect line not yet changed | One-line change to role-based navigate |
+
+## Result
+- /admin shows live data: 6 requests (4 provisioning, 2 rejected, 0 pending).
+- Route protection works for admins and regular users.
+
+## Still to do
+- Test the Approve, Reject and Provision buttons using a new pending request from demo@example.com.
+- Apply the same sidebar style to the user dashboard.
+- Day 18 onward: AWS account, billing alert, Terraform, real EC2 provisioning/
+
+
+
+

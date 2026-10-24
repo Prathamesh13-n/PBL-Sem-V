@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import AppLayout from '../components/AppLayout'
 import apiClient from '../api/client'
 
 const STATUS_LABELS = {
@@ -10,6 +11,7 @@ const STATUS_LABELS = {
   provisioning: 'Provisioning',
   provisioned: 'Provisioned',
   failed: 'Failed',
+  destroyed: 'Destroyed',
 }
 
 function statusBadgeClass(status) {
@@ -17,10 +19,11 @@ function statusBadgeClass(status) {
 }
 
 function Dashboard() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const [requests, setRequests] = useState([])
+  const [ips, setIps] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -28,18 +31,36 @@ function Dashboard() {
     loadRequests()
   }, [])
 
-  function loadRequests() {
-    setLoading(true)
+  // refresh quietly every 5 seconds while something is still provisioning
+  const anyProvisioning = requests.some((r) => r.status === 'provisioning')
+  useEffect(() => {
+    if (!anyProvisioning) return
+    const t = setInterval(() => loadRequests(true), 5000)
+    return () => clearInterval(t)
+  }, [anyProvisioning])
+
+  function loadRequests(silent = false) {
+    if (!silent) setLoading(true)
     apiClient
       .get('/requests')
-      .then((res) => setRequests(res.data))
+      .then((res) => {
+        setRequests(res.data)
+        loadIps(res.data)
+      })
       .catch(() => setError('Could not load your requests. Please try refreshing.'))
       .finally(() => setLoading(false))
   }
 
-  function handleLogout() {
-    logout()
-    navigate('/login')
+  // fetch the public IP of every provisioned request
+  function loadIps(list) {
+    list
+      .filter((r) => r.status === 'provisioned')
+      .forEach((r) => {
+        apiClient
+          .get(`/requests/${r.id}/deployment`)
+          .then((res) => setIps((prev) => ({ ...prev, [r.id]: res.data.public_ip })))
+          .catch(() => {})
+      })
   }
 
   // Compute a per-user "display number" — each user's own first-ever
@@ -65,12 +86,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-topbar">
-        <span className="wordmark">cloud-provisioning-portal</span>
-        <span className="wordmark">{user?.email}</span>
-      </div>
-
+    <AppLayout>
       <div className="dashboard-body">
         <div className="dashboard-header">
           <div>
@@ -80,9 +96,6 @@ function Dashboard() {
           <div className="header-actions">
             <button className="primary-btn" onClick={() => navigate('/requests/new')}>
               + New Request
-            </button>
-            <button className="secondary-btn" onClick={handleLogout}>
-              Logout
             </button>
           </div>
         </div>
@@ -106,41 +119,47 @@ function Dashboard() {
             no requests yet — click "+ New Request" to submit your first one.
           </p>
         ) : (
-          <table className="requests-table">
-            <thead>
-              <tr>
-                <th>id</th>
-                <th>instance</th>
-                <th>os</th>
-                <th>region</th>
-                <th>status</th>
-                <th>created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((req) => (
-                <tr
-                  key={req.id}
-                  className="clickable-row"
-                  onClick={() => navigate(`/requests/${req.id}`)}
-                >
-                  <td>#{isAdmin ? req.id : displayNumberById[req.id]}</td>
-                  <td>{req.instance_type || '—'}</td>
-                  <td>{req.os}</td>
-                  <td>{req.region}</td>
-                  <td>
-                    <span className={statusBadgeClass(req.status)}>
-                      {STATUS_LABELS[req.status] || req.status}
-                    </span>
-                  </td>
-                  <td>{new Date(req.created_at).toLocaleDateString()}</td>
+          <div className="table-scroll" style={{ overflowX: 'auto' }}>
+            <table className="requests-table">
+              <thead>
+                <tr>
+                  <th>id</th>
+                  <th>name</th>
+                  <th>instance</th>
+                  <th>os</th>
+                  <th>region</th>
+                  <th>public ip</th>
+                  <th>status</th>
+                  <th>created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {requests.map((req) => (
+                  <tr
+                    key={req.id}
+                    className="clickable-row"
+                    onClick={() => navigate(`/requests/${req.id}`)}
+                  >
+                    <td>#{isAdmin ? req.id : displayNumberById[req.id]}</td>
+                    <td>{req.instance_name || '—'}</td>
+                    <td>{req.instance_type || '—'}</td>
+                    <td>{req.os}</td>
+                    <td>{req.region}</td>
+                    <td>{req.status === 'provisioned' ? ips[req.id] || '...' : '—'}</td>
+                    <td>
+                      <span className={statusBadgeClass(req.status)}>
+                        {STATUS_LABELS[req.status] || req.status}
+                      </span>
+                    </td>
+                    <td>{new Date(req.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
-    </div>
+    </AppLayout>
   )
 }
 
@@ -153,4 +172,4 @@ function SummaryCard({ label, value }) {
   )
 }
 
-export default Dashboard
+export default Dashboard 

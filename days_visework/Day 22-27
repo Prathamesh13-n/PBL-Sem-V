@@ -1,0 +1,64 @@
+# Day 22-27 Summary: Time Options, Custom Dates, Automatic Handling and Recommendation
+
+Date: 17-18 Oct 2026
+
+## Day 22: Time-based requests and cost estimate
+- The request form now asks for an **instance name** (2-40 characters, letters, digits, space, `_ . -`). It becomes the EC2 Name tag `<name>-req<id>`.
+- The user chooses **how long** the instance is needed: 2 hours, 6 hours, 1 day, 3 days or 7 days.
+- Each option shows an approximate price in INR (and USD), calculated in `pricing.py`:
+  instance price per hour + public IPv4 per hour + storage per GB-month, times the hours.
+- New columns in `resource_requests`: `instance_name`, `duration_hours` (added with ALTER TABLE).
+- Admin and user tables show the name and the time requested; requests longer than 7 days are highlighted for the admin.
+
+## Day 23: Destroyed status and auto-destroy
+- New status **destroyed**. A destroyed request is terminal and shown in grey.
+- An auto-destroy scheduler thread checks every 60 seconds and destroys instances whose time is up (the countdown starts when the instance is created).
+- `destroy_all.py` destroys every instance created by the portal; `reset_demo.py` clears the demo data.
+
+## Day 24: Custom end date and automatic status updates
+- **Custom end date and time**: the user picks any date and time, from 1 hour up to 90 days. Beyond 90 days the form says "contact the admin".
+- The price for the custom time is calculated by `/requests/estimate`.
+- Automatic status flow: approve -> provisioning -> provisioned, without the admin pressing a second button (`AUTO_PROVISION`, default on). The request detail page polls and updates itself.
+- Statuses: pending, approved, rejected, provisioning, provisioned, failed, destroyed.
+
+## Day 25: Failed deployment handling
+- A failed run is saved as **failed** with the error text. The admin sees the raw error, the user sees "Provisioning failed. Please contact an administrator."
+- **Retry Provisioning** (failed -> provisioning).
+- Job guard: only one Terraform job per request (second click returns HTTP 409); `-lock-timeout=60s` avoids state-lock clashes.
+- Cleanup: after a partial failure, `terraform destroy` runs only if `terraform state list` shows created resources.
+- Startup recovery: requests stuck in "provisioning" after a server restart are marked failed.
+- Configurable timeouts for init, apply and destroy.
+
+## Day 26: Rule-based recommendation
+New module `recommendation.py`:
+
+| Workload level | Instance type | vCPU / memory |
+|---|---|---|
+| Low | t3.micro | 2 / 1 GiB |
+| Medium | t3.small | 2 / 2 GiB |
+| High | t3.medium | 2 / 4 GiB |
+
+- Each rule has a plain-language reason shown to the user.
+- The instance type is saved with the request and passed to Terraform (allowed types: t2.micro, t3.micro, t3.small, t3.medium).
+- Endpoint: `GET /requests/recommendation`.
+
+## Day 27: Cost estimation
+- The recommendation box shows a **reference price** for a full month (730 hours, 24x7) in INR and USD. It depends on the workload and storage, not on the chosen time.
+- The price for the chosen time is shown separately under the time options and changes with the duration (for example 7 days is about 13 times cheaper than 90 days).
+- All prices are estimates from approximate ap-south-1 (Mumbai) rates and are labelled "estimate"; the real bill comes from AWS. Rates must be re-checked against the AWS pricing page before the final report.
+
+## Problems solved in this period
+- File name casing (Admindashboard.jsx vs AdminDashboard.jsx) and a router nested inside a router.
+- Wrong content pasted into Terraform files; fixed by recreating them and checking the first line.
+- Missing database columns after the model change; fixed with ALTER TABLE.
+- Missing `AppLayout.jsx` after copying pages; file recreated.
+- Custom date a few minutes beyond 90 days shows no price (expected behaviour, limit counted from the current time).
+
+## How to test
+1. Request Low, Medium and High and check the recommended type and reference price.
+2. Pick 2 hours, 7 days and a custom date and confirm the price changes.
+3. Approve a request and watch it go provisioning -> provisioned; check the instance in the EC2 console (ap-south-1).
+4. Destroy it and confirm EC2 shows no running instance.
+
+## Still to do
+Day 28-29 plan items, Docker (30-31), testing (32-34), final documentation and research paper (35).

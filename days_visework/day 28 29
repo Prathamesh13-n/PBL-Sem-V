@@ -1,0 +1,49 @@
+# Day 28-29 Summary: Security Validation and the Final Flow
+
+Date: 18 Oct 2026
+
+## Day 28: Security validation
+New module `security.py`. It reads the real `terraform/main.tf` and the request, then returns a score (0-100), a risk level and a list of findings.
+
+| Check | What it looks at | Result for the portal |
+|---|---|---|
+| Public access | inbound rules open to 0.0.0.0/0 | port 80 only: small warning |
+| SSH exposure | port 22 | closed unless an allowed range is set; open to everyone = fail |
+| Required ports | risky ports (3389, 3306, 5432, 27017, 6379) | none opened |
+| IAM | instance profile on the instance | none (pass) |
+| Disk encryption | `encrypted = true` on the root volume | pass |
+| Metadata service | IMDSv2 required | pass |
+| Request checks | more than 7 days, no clear purpose | small deductions |
+
+- Levels: 85+ low risk, 60-84 medium risk, below 60 high risk.
+- `main.tf` was hardened: encrypted root volume and IMDSv2 required.
+- Score is stored in `resource_requests.security_score` when the request is made.
+- New endpoint `GET /requests/{id}/security` (owner or admin).
+- New component `SecurityCheck.jsx` on the request detail page.
+- The check is rule-based and does not scan the running server. The portal IAM user (EC2 permissions) is shown as an information item.
+
+## Day 29: Final flow integration
+User Request -> Smart Recommendation -> Cost Estimate -> Security Check -> Admin Approval -> Terraform -> AWS EC2
+
+- New endpoint `GET /requests/preview` returns recommendation, cost and security result in one call.
+- **User, before submitting:** a "Request summary" box (instance, time, cost, security score and warnings).
+- **Admin, before approving:** a "Review summary" card with the same four points; a confirmation appears when the security score is below 60 or the estimated cost is above Rs 500.
+- **Flow indicator:** `FlowSteps` shows the seven steps and marks done, current and failed steps from the request status.
+
+## Interface work
+- Polished layout for the request form, detail page, tables and badges.
+- Mobile and tablet layout: sidebar becomes a top bar, forms in one column, tables scroll.
+- User dashboard now uses the same sidebar layout as the admin pages.
+
+## Problems solved
+- Missing component files (`AppLayout.jsx`, `SecurityCheck.jsx`) after copying.
+- `main.tf` overwritten with Python code; recreated and validated.
+- Stale "Provisioned" row for a request with nothing left on AWS; fixed in `portal.db`.
+- Virtual environment not active when running `destroy_all.py`.
+
+## How to test
+1. `terraform validate` succeeds.
+2. Open a request: flow bar, Review summary and Security Check card appear.
+3. New request: the Request summary box changes with workload, time and purpose.
+4. Admin approves a request with a low score or high cost: a confirmation appears.
+5. After testing, destroy any instance and check EC2 in ap-south-1.

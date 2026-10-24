@@ -1,0 +1,57 @@
+# Test Checklist (Days 32-34)
+
+Run each test once, write Pass or Fail and a short note. Keep every instance short (2 hours) and press Destroy afterwards. Check EC2 in ap-south-1 at the end: no running instances.
+
+## A. Accounts and access
+| # | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| A1 | Register | Create a new user | Account created, can log in | | |
+| A2 | Wrong password | Log in with a wrong password | Error message, no login | | |
+| A3 | User sees only own requests | Log in as user B | Cannot see user A's requests; opening A's request gives "not authorized" | | |
+| A4 | Admin access | Log in as admin | Admin dashboard visible, user cannot open /admin | | |
+
+## B. Request form
+| # | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| B1 | Recommendation | Select Low, Medium, High | t3.micro, t3.small, c7i-flex.large with reason and reference price | | |
+| B2 | Cost changes with time | Select 2 hours, 7 days, custom date | Price grows with the time | | |
+| B3 | Custom date over 90 days | Pick a date more than 90 days away | Message to contact the admin, no price | | |
+| B4 | Name validation | Enter 1 character or symbols | Clear error message | | |
+| B5 | Storage range | Enter 5 and 50 GB | Rejected (allowed 8 to 30) | | |
+| B6 | Security summary | Empty purpose, then a clear purpose | Score and warning change | | |
+
+## C. Admin review
+| # | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| C1 | Review summary | Open a pending request as admin | Flow bar, Review summary, Security Check card | | |
+| C2 | Warning on risky request | Approve a long request (30 days, no purpose) | Confirmation box appears | | |
+| C3 | Reject with reason | Reject with a preset reason | Red card with the reason; user's Purpose unchanged | | |
+| C4 | Reject without reason | Choose Other with empty note | Message asking for a reason | | |
+
+## D. Provisioning (real AWS)
+| # | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| D1 | Approve and provision | Approve a 2-hour Low request | Provisioning, then Provisioned with instance ID and IP; visible in EC2 | | |
+| D2 | High workload | Approve a 2-hour High request | c7i-flex.large provisioned | | |
+| D3 | Destroy | Press Destroy | Status Destroyed; instance terminated in EC2 | | |
+| D4 | Auto-destroy | Run with `INSTANCE_MAX_HOURS` set to a small value or `FORCE_LIFETIME_HOURS` | Instance destroyed when time is up | | |
+| D5 | Double click | Click Approve or Retry twice quickly | Only one job runs | | |
+
+## E. Failure handling
+| # | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| E1 | Failed deployment | Use a wrong AWS key in `.env` or the AWS login, then approve | Status Failed; admin sees the error, user sees a general message | | |
+| E2 | Retry | Fix the key, press Retry | Request goes to Provisioned | | |
+| E3 | Restart during provisioning | Restart the backend while a request is provisioning | Request becomes Failed after restart; Retry works | | |
+| E4 | Partial failure cleanup | Check EC2 after a failed request | No left-over instance | | |
+
+## F. Interface and Docker
+| # | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| F1 | Mobile view | Phone size in browser dev tools (F12) | Top bar menu, form in one column, tables scroll | | |
+| F2 | Docker start | `docker compose up -d`, open localhost:5173 | Login works, requests visible | | |
+| F3 | Data survives restart | `docker compose down`, then `up -d` | Requests still there | | |
+
+## End check
+- EC2 (ap-south-1): no running instances
+- AWS Billing: credits used so far noted for the report

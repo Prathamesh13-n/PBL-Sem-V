@@ -38,6 +38,7 @@ class RequestStatus(str, enum.Enum):
     provisioning = "provisioning"
     provisioned = "provisioned"
     failed = "failed"
+    destroyed = "destroyed"
 
 
 class DeploymentStatus(str, enum.Enum):
@@ -72,6 +73,8 @@ class ResourceRequest(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     resource_type = Column(String(20), default="EC2")
+    instance_name = Column(String(60), nullable=True)  # name chosen by the user
+    duration_hours = Column(Integer, nullable=True)  # how long the user needs it
     workload_level = Column(Enum(WorkloadLevel), nullable=False)
     instance_type = Column(String(20), nullable=True)  # e.g. t3.micro (set by recommendation engine)
     os = Column(String(30), nullable=False)
@@ -81,6 +84,8 @@ class ResourceRequest(Base):
 
     estimated_cost = Column(Numeric(10, 2), nullable=True)
     security_score = Column(Integer, nullable=True)
+    rejection_reason = Column(Text, nullable=True)  # why the admin rejected it
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
     status = Column(Enum(RequestStatus), nullable=False, default=RequestStatus.pending)
     reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)

@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - portal_data:/data
+      - terraform_runs:/app/terraform_runs
+      - terraform_cache:/app/.terraform-plugin-cache
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  portal_data:
+  terraform_runs:
+  terraform_cache:

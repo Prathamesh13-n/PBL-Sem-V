@@ -1,6 +1,14 @@
-cd backend
-venv\Scripts\activate
+cd "D:\cloud resourse provider protal\backend"
+.\venv\Scripts\Activate.ps1
 uvicorn app.main:app --reload
+
+
+
+
+$gi = "D:\cloud resourse provider protal\.gitignore"
+if (-not (Test-Path $gi)) { New-Item $gi -ItemType File | Out-Null }
+Add-Content -Encoding ascii $gi "`n# secrets and generated files`n.env`n**/.env`n*.db`nterraform_runs/`n.terraform-plugin-cache/`nterraform/terraform.tfstate*`nterraform/terraform.tfvars"
+Get-Content $gi
 
 
 uvicorn — the program that runs your Python web app.
@@ -9,3 +17,32 @@ a folder named app
 a file named main.py
 :app — tells it to use the FastAPI object called app inside main.py.
 --reload — automatically restarts the server whenever you modify your code.
+
+
+
+Now create the real instance, check it and destroy it. Do all three steps in one sitting. A t3.micro costs a fraction of a cent per hour, but don’t leave it running overnight.
+
+1. Create it:
+
+powershell
+terraform apply
+
+It shows the same plan and asks Enter a value:. Type yes and press Enter. It takes 30–60 seconds. At the end you get instance_id, instance_state and public_ip. Send me those three lines. They aren’t secret.
+
+2. Check it in the AWS console:
+
+Switch the region (top right) to Asia Pacific (Mumbai) ap-south-1.
+Search for EC2 → Instances.
+You should see portal-request-1 with a running state. That’s your first real instance.
+
+3. Destroy it right away:
+
+powershell
+terraform destroy
+
+
+
+
+by using the docker how to run 
+   cd "D:\cloud resourse provider protal"
+   docker compose up -d

@@ -1,0 +1,43 @@
+# Day 30-31 Summary: Docker
+
+Date: 18 Oct 2026
+
+## Goal
+Package the portal so the whole system (website, API, Terraform, database) starts with one command, and keep the Terraform state and database safe between restarts.
+
+## Day 30: Docker images
+| File | Purpose |
+|---|---|
+| `backend/Dockerfile` | Python 3.14 image with the FastAPI backend and the Terraform program (the backend runs it as a subprocess). Runs as a normal user, not root. Has a health check on `/docs`. |
+| `frontend/Dockerfile` | Two stages: Node 22 builds the React app (`npm run build`), nginx 1.27 serves the built files. |
+| `frontend/nginx.conf` | Serves the app; every unknown path returns `index.html` so React Router works. |
+| `.dockerignore`, `frontend/.dockerignore` | Keeps `node_modules`, `venv`, databases, Terraform state and every `.env` file out of the images. |
+| `backend/requirements.txt` | Created with `pip freeze` from the project's virtual environment. |
+
+Folder layout inside the backend image matches the PC (`/app/backend`, `/app/terraform`), so `terraform_runner.py` finds its templates without code changes.
+
+## Day 31: Docker Compose
+`docker-compose.yml` starts two services:
+- **backend**: port 8000, settings from `.env`, three named volumes: `portal_data` (database), `terraform_runs` (Terraform state of every request), `terraform_cache` (AWS provider download).
+- **frontend**: port 5173 (nginx), starts only after the backend is healthy.
+
+Settings in `.env` (never committed): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `DATABASE_URL`, `SECRET_KEY`, `AUTO_PROVISION`, `INSTANCE_MAX_HOURS`.
+
+Commands:
+- Start: `docker compose up -d`
+- Rebuild after changing code: `docker compose up -d --build`
+- Stop (data stays): `docker compose down`
+- Status: `docker compose ps`; backend log: `docker compose logs -f backend`
+
+## Problems found and fixed
+| Problem | Cause | Fix |
+|---|---|---|
+| Backend stopped at start: `database_url` and `secret_key` missing | Settings were read from `backend/.env`, which is not used in the container | Added both to the root `.env` |
+| `no such table: resource_requests` | New volume had an empty database | Copied the existing `portal.db` into the volume |
+| Every request failed with Python code in the Terraform error | `variables.tf` had been overwritten with Python code | Recreated the file and added a file check script |
+| t3.medium failed: "not eligible for Free Tier" | The AWS free plan only allows some instance types | High workload now uses `c7i-flex.large` (4 GiB); allowed list checked with `describe-instance-types` |
+| `terraform init` failed with "text file busy" | Several requests started at once and used the shared provider cache together | Init now runs one at a time (lock) and uses the cached provider |
+| Changes did not appear in Docker | The image holds a copy of the files | Always run `docker compose up -d --build` after a change |
+
+## Result
+All services start with one command. A real EC2 instance was created from the Docker version (c7i-flex.large, 7 days requested) and destroyed afterwards. Both the Docker run and the normal run (`uvicorn` plus `npm run dev`) work; the Docker version uses its own database and its own AWS keys from `.env`.

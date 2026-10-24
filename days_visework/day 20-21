@@ -1,0 +1,58 @@
+# Day 20-21 Summary: Provisioning Automation and Cost Safety
+
+Date: 16 Oct 2026
+
+## Goal
+Connect the admin dashboard to Terraform so that approving and provisioning a request creates a real EC2 instance, then make sure no instance can be forgotten and left running.
+
+## Day 20: Backend runs Terraform
+
+### New backend module: `app/terraform_runner.py`
+- Each request gets its own working folder `terraform_runs/request-<id>/`, copied from the `terraform/` templates.
+- A per-request `terraform.tfvars` is generated from the request (instance type, storage, request id).
+- Safety limits: only t2.micro / t3.micro, storage clamped to 8-30 GB.
+- `run_provision`: `terraform init`, `apply`, `output -json`, then saves instance id, public IP, state path and time in the `deployments` table; request status becomes provisioned or failed (error text saved).
+- `run_destroy`: `terraform destroy` for one request.
+- Shared plugin cache so the AWS provider is downloaded only once.
+- Jobs run in FastAPI background tasks, so the Provision button returns immediately.
+
+### Updated API (`routes_requests.py`)
+| Endpoint | Purpose |
+|---|---|
+| PATCH /requests/{id}/start-provisioning | creates a deployment record and starts Terraform in the background; also used as Retry after a failure |
+| POST /requests/{id}/destroy | admin destroys the real instance |
+| GET /requests/{id}/deployment | instance id, IP, status, times (admins see raw errors, users see a short message) |
+
+State machine additions: failed -> provisioning (retry), provisioned -> destroyed, new request status `destroyed`.
+
+### Frontend
+- `DeploymentInfo.jsx`: panel on the request page, refreshes every 5 s while provisioning.
+- Admin dashboard: Retry and Destroy buttons, "destroyed" card, auto-refresh while provisioning.
+- Request detail page: Start/Retry Provisioning, Destroy Instance, Destroyed badge.
+
+### Bug found in real use: double destroy
+Two destroy jobs ran on the same request (double click). The second could not read the locked state file and overwrote the success with an error, although the instance was already terminated.
+Fix: only one Terraform job per request at a time (HTTP 409 if busy), `-lock-timeout=60s`, a finished destroy is never overwritten, normal users see a generic message.
+
+## Day 21: Auto-destroy and safer network
+
+- Background timer started from `main.py` (FastAPI lifespan). Every 60 s it destroys any provisioned instance older than the limit and sets the request to destroyed.
+- Limit: 2 hours by default; changed with the environment variable `INSTANCE_MAX_HOURS` (0.1 = 6 minutes was used for testing).
+- SSH (port 22) is closed by default; only HTTP (80) is open. SSH opens only if `allowed_cidr` is set.
+- Countdown "Auto-destroys in 1h 42m" in the deployment panel.
+- Time fix: API times are now timezone-aware so the browser shows local time correctly.
+
+## Testing done
+- Backend with a fake Terraform: provision, failure, retry, destroy, double-click protection, timer expiry.
+- Real AWS test by the student: approve, provision, instance running in Mumbai, auto-destroy after the timer, instance terminated. Both flows passed.
+
+## Problems met and fixes
+| Problem | Cause | Fix |
+|---|---|---|
+| Unused import warning / red underline | DeploymentInfo imported but file missing or not used | Created the file; panel added to RequestDetail |
+| State lock error on destroy | Two destroy jobs at once | Job guard, lock timeout |
+| AttributeError: RequestStatus has no attribute destroyed | models.py not updated | Added `destroyed` to RequestStatus |
+| terraform validate errors | main.tf and variables.tf contained React code (wrong content pasted) | Recreated both with PowerShell here-strings; checked first line of every file |
+
+## Next
+Duration choice per request (user picks days), approximate price estimate shown before submitting, auto-destroy based on the chosen duration; then the detailed permission form and the recommendation, cost and security module.

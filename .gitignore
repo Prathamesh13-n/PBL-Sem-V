@@ -1,0 +1,19 @@
+
+# secrets and generated files
+.env
+**/.env
+*.db
+terraform_runs/
+.terraform-plugin-cache/
+terraform/terraform.tfstate*
+terraform/terraform.tfvars
+
+*.db
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform_runs/
+.terraform-plugin-cache/
+__pycache__/
+node_modules/
+dist/

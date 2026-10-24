@@ -1,23 +1,17 @@
-"""
-Run this once to create all tables defined in app/models.py.
+"""Create the database tables (run once on a fresh install).
 
-Usage:
     python init_db.py
 
-Safe to re-run: create_all() only creates tables that don't already exist,
-it never drops or overwrites existing data.
+Safe to run again: existing tables and data are left alone.
+Docker:  docker compose run --rm backend python /app/backend/init_db.py
 """
-
-from app.database import engine, Base
-from app import models  # noqa: F401  (import needed so models register with Base)
+from app.database import Base, engine
+from app import models  # noqa: F401  (loads the table definitions)
 
 
 def main():
-    print("Creating tables...")
     Base.metadata.create_all(bind=engine)
-    print("Done. Tables created:")
-    for table_name in Base.metadata.tables.keys():
-        print(f"  - {table_name}")
+    print("Database tables are ready.")
 
 
 if __name__ == "__main__":

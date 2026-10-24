@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text, inspect
@@ -6,11 +8,23 @@ from sqlalchemy.orm import Session
 from app.database import get_db, engine
 from app.routes_auth import router as auth_router
 from app.routes_requests import router as requests_router
+from app.Admin_routes import router as admin_router  # NEW
+from app.terraform_runner import start_scheduler, recover_stuck
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # mark requests interrupted by a restart as failed, then start the auto-destroy timer
+    recover_stuck()
+    start_scheduler()
+    yield
+
 
 app = FastAPI(
     title="Cloud Resource Provisioning Portal API",
     description="Backend for the EC2 self-service provisioning portal",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Allows the React dev server to call this API from the browser.
@@ -30,6 +44,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(requests_router)
+app.include_router(admin_router)  # NEW
 
 
 @app.get("/")

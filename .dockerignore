@@ -1,0 +1,16 @@
+.git
+**/.env
+**/node_modules
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+frontend
+docs
+terraform_runs
+.terraform-plugin-cache
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/terraform.tfvars
+*.db

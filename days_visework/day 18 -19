@@ -1,0 +1,69 @@
+# Day 18-19 Summary: AWS Setup and First Terraform Deployment
+
+Date: 16 Oct 2026
+
+## Goal
+Prepare a safe AWS account and Terraform tooling, then prove that Terraform can create and destroy a real EC2 instance. This is the base for the portal's provisioning feature.
+
+## Day 18: AWS account and tools
+
+### Account
+- AWS free plan with about $119.99 credits, valid until 31 Jan 2027. A free-plan account stops working when credits run out and is not billed unless the owner upgrades to a paid plan.
+- MFA enabled on the root account (virtual authenticator app).
+- Project region: ap-south-1 (Mumbai).
+
+### Least-privilege user for Terraform
+- IAM user `terraform-portal` with no console password.
+- Policy: AmazonEC2FullAccess only.
+- CLI access key created and stored outside the project folder.
+- Security incident handled: the first secret key appeared in a screenshot, so it was deactivated, deleted and replaced. `aws configure` was run again with the new key.
+
+### Tools installed (via winget)
+- AWS CLI 2.38.1
+- Terraform 1.16.5
+- Check: `aws sts get-caller-identity` returned the account and `user/terraform-portal` (not root).
+
+## Day 19: First Terraform configuration
+
+Folder: `terraform/`
+
+| File | Purpose |
+|---|---|
+| main.tf | AWS provider, latest Amazon Linux 2023 image lookup, default VPC and subnet lookup, security group, EC2 instance |
+| variables.tf | request_id, instance_type, storage_gb, allowed_cidr, region, with validation |
+| outputs.tf | instance_id, public_ip, instance_state |
+| terraform.tfvars | values for one request (kept out of git) |
+| .gitignore | excludes state files, .terraform and tfvars |
+
+### Safety rules in the code
+- instance_type is limited to t2.micro and t3.micro.
+- storage_gb is limited to 8-30.
+- Resources are tagged Project=ec2-portal and RequestId=<id>.
+
+### Commands and results
+| Command | Result |
+|---|---|
+| terraform init | AWS provider v5.100.0 installed |
+| terraform validate | Success, configuration valid |
+| terraform plan | 2 to add, 0 to change, 0 to destroy (instance and security group) |
+| terraform apply | Created in about 15 seconds: instance i-05af7fbde6a33e84c, state running, public IP 13.235.103.165 |
+| terraform destroy | Resources removed to stop charges |
+
+The instance was also verified in the AWS console (EC2, Mumbai, name portal-request-1).
+
+## Problems met and fixes
+| Problem | Cause | Fix |
+|---|---|---|
+| aws and terraform "not recognized" | PATH changes apply only to new shells | Closed and reopened PowerShell |
+| Console-access dialog opened by mistake | Wrong button on the Security credentials tab | Cancelled; used the Access keys section |
+| Secret key shown in a screenshot | Terminal echoed the pasted secret | Rotated the key and reconfigured the CLI |
+| copy terraform.tfvars.example failed | Downloaded files never reached the folder | Created all files with PowerShell here-strings |
+
+## Design decisions
+- The backend never calls the AWS SDK directly; it only runs Terraform.
+- Default VPC is used for now; a custom VPC per request is an optional extra.
+- No key pair yet, so the instance cannot be logged into over SSH; this is intentional for the test.
+- Instances are destroyed after each test session to protect credits.
+
+## Next: Day 20
+FastAPI runs Terraform when an admin clicks Provision: per-request working folder and tfvars, background apply, save instance ID and IP to the deployments table, set status to provisioned or failed, and show the result on the request page.
