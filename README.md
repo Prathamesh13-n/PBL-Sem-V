@@ -75,8 +75,8 @@ Real instances cost real money (or AWS credits). Test with the **2 hours** optio
 ## 4. Get the code
 
 ```powershell
-git clone <your-repository-url>
-cd "cloud resourse provider protal"
+git clone https://github.com/Prathamesh13-n/PBL-Sem-V.git
+cd PBL-Sem-V
 ```
 
 ## 5. Option A: run with Docker (recommended)
@@ -90,10 +90,9 @@ AWS_DEFAULT_REGION=ap-south-1
 DATABASE_URL=sqlite:////data/portal.db
 SECRET_KEY=put-a-long-random-text-here
 AUTO_PROVISION=1
-INSTANCE_MAX_HOURS=2
 ```
 
-`INSTANCE_MAX_HOURS=2` is a safety limit for testing, remove it for normal use.
+Optional, for testing only: add `FORCE_LIFETIME_HOURS=2` to make every server expire and be destroyed after 2 hours, whatever duration the user chose. Remove it for normal use.
 
 2. Start everything:
 
@@ -139,9 +138,15 @@ Create `backend\.env`:
 ```
 DATABASE_URL=sqlite:///./portal.db
 SECRET_KEY=put-a-long-random-text-here
-AUTO_PROVISION=1
-INSTANCE_MAX_HOURS=2
 ```
+
+Do not add other names to `backend\.env`: the backend refuses unknown settings in that file. Optional testing safety (terminal only, in the same window before `uvicorn`):
+
+```powershell
+$env:FORCE_LIFETIME_HOURS = "2"
+```
+
+With it, every server is destroyed automatically after 2 hours.
 
 Create the tables and start the server:
 
@@ -211,7 +216,7 @@ Before you finish a demo or testing session, run `destroy_all.py` and also check
 ## 11. Project structure
 
 ```
-cloud resourse provider protal/
+PBL-Sem-V/
 ├── backend/            FastAPI app (app/), helper scripts, Dockerfile
 ├── frontend/           React + Vite app, nginx.conf, Dockerfile
 ├── terraform/          main.tf and variables.tf used for every request
@@ -233,12 +238,15 @@ Runtime folders `terraform_runs/` and `.terraform-plugin-cache/` are created aut
 | Request `failed` with "not eligible for Free Tier" | The instance type is not allowed on your AWS plan; use a smaller workload |
 | `failed` request | Open it and click retry; check backend logs for the Terraform error |
 | Changes not showing in Docker | `docker compose up -d --build` |
+| `VcpuLimitExceeded` error on a request | The AWS account allows 8 vCPUs at once (4 servers). Destroy running servers (`python destroy_all.py --yes`), then click Retry |
+| `Extra inputs are not permitted` when starting | An unknown name is in `backend\.env`. Keep only `DATABASE_URL` and `SECRET_KEY` there |
 | Login works but no admin pages | Run `make_admin.py`, then log in again |
 
 ## 13. Limitations
 
 - SQLite and a single backend process, suitable for demos and small teams, not large production.
 - Only EC2 in one region (`ap-south-1`).
+- The AWS account vCPU quota (8 vCPUs) allows at most 4 servers to run at the same time; users can still send unlimited requests.
 - Cost values are estimates, not a bill.
 - Recommendation, cost and security checks are rule-based, not machine learning.
 
