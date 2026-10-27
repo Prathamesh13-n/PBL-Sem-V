@@ -491,9 +491,4 @@ Created while running: `terraform_runs/` (one folder per request, holds the Terr
 
 ---
 
-#NOTE
-## Login Functionality
-
-The login feature is available, and users can test the login functionality locally by running the application on their local server. However, the backend has not been deployed yet, as deployment may involve paid services. Once the backend is deployed, the login functionality will be available for use in the deployed application.
-
 *Developed as a PBL project at MIT Art, Design and Technology University, Pune.*
