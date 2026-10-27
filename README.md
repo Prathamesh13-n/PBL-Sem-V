@@ -1,3 +1,9 @@
+#NOTE
+The login feature is available, but the backend hasn’t been deployed yet because deployment may involve paid services. Once the backend is deployed, the login functionality will be fully useful.
+---
+
+
+
 # AWS EC2 Self-Service Provisioning Portal
 
 A web portal where users request a cloud server (an AWS EC2 instance), an administrator approves it, and the portal creates it automatically on real AWS with Terraform. The user then tracks its status and public IP, and the server is destroyed automatically when the chosen time ends.
