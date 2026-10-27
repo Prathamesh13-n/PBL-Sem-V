@@ -1,10 +1,3 @@
-#NOTE
-
-The login feature is available, but the backend hasn’t been deployed yet because deployment may involve paid services. Once the backend is deployed, the login functionality will be fully useful.
----
-
-
-
 # AWS EC2 Self-Service Provisioning Portal
 
 A web portal where users request a cloud server (an AWS EC2 instance), an administrator approves it, and the portal creates it automatically on real AWS with Terraform. The user then tracks its status and public IP, and the server is destroyed automatically when the chosen time ends.
@@ -497,5 +490,10 @@ Created while running: `terraform_runs/` (one folder per request, holds the Terr
 - Do not commit `*.db`, `*.tfstate` or `terraform_runs/`. They can hold user data and AWS details. They are also in `.gitignore`.
 
 ---
+
+#NOTE
+## Login Functionality
+
+The login feature is available, and users can test the login functionality locally by running the application on their local server. However, the backend has not been deployed yet, as deployment may involve paid services. Once the backend is deployed, the login functionality will be available for use in the deployed application.
 
 *Developed as a PBL project at MIT Art, Design and Technology University, Pune.*
