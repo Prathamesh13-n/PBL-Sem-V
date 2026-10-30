@@ -490,5 +490,8 @@ Created while running: `terraform_runs/` (one folder per request, holds the Terr
 - Do not commit `*.db`, `*.tfstate` or `terraform_runs/`. They can hold user data and AWS details. They are also in `.gitignore`.
 
 ---
+## 24.How to setup the a aws the
+- main branch there already created all step in details follow all step then you can be used that all thing of configuration all the thins
+- The file name is `*READMEAWS.md`
 
 *Developed as a PBL project at MIT Art, Design and Technology University, Pune.*
