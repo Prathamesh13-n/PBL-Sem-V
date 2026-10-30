@@ -493,5 +493,9 @@ Created while running: `terraform_runs/` (one folder per request, holds the Terr
 ## 24.How to setup the a aws the
 - main branch there already created all step in details follow all step then you can be used that all thing of configuration all the thins
 - The file name is `*READMEAWS.md`
+- driect access of the given below
+```
+https://github.com/Prathamesh13-n/PBL-Sem-V/blob/main/READMEAWS.md
+```
 
 *Developed as a PBL project at MIT Art, Design and Technology University, Pune.*
