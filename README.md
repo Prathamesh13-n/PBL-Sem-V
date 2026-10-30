@@ -497,5 +497,6 @@ Created while running: `terraform_runs/` (one folder per request, holds the Terr
 ```
 https://github.com/Prathamesh13-n/PBL-Sem-V/blob/main/READMEAWS.md
 ```
+- Given link just do copy and do paste any browser you can be access the file 
 
 *Developed as a PBL project at MIT Art, Design and Technology University, Pune.*
